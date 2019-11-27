@@ -1,62 +1,62 @@
 extern crate hyper;
 
 use hyper::{service, Request, Response, Body, Server, StatusCode};
+use hyper::header::{HeaderMap, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
 
 // Create response based on the request parameters
 fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
-    // Create payload
     let (parts, body) = req.into_parts();
 
     match parts.uri.path() {
         "/" => {
             let entire_body = body.concat2();
-            let res = entire_body.map(|body| {
-                let s = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
-                println!("{}",s);
-                Response::new(Body::from("abba\n"))
+            let res = entire_body.map(move |body| {
+                let body_string = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
+                let payload = create_payload(parts.method.to_string(), parts.uri.to_string(), body_string);
+                let is_verified = verify_request(payload, parts.headers);
+                respond_success(is_verified)
             });
 
-            println!("Method: {}\nUri: {}\n", parts.method, parts.uri);
             Either::A(res)
         }
         _ => {
-            let body = Body::from("Please connect to /\n");
-            let res = future::ok(Response::new(body));
+            let res = future::ok(respond_success(false));
             Either::B(res)
         }
     }
 }
 
-/*
-// Verify signature
-let verification = true;
+fn create_payload (method: String, uri: String, body_string: String) -> String {
+    println!("Method: {}\nUri: {}\nBody: {}\n", method, uri, body_string);
+    "abba".to_string()
+}
 
-// construct response based on verification and query params
-match verification {
-    true => {
-        Response::new(Body::from("abba\n"))
-    },
-    _ => {
-        Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Body::empty())
-            .unwrap()
+fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
+    println!("Payload: {}", payload);
+    for (key, value) in headers.iter() {
+        println!("Header: {:?}: {:?}", key, value);
+    }
+    true
+}
+
+fn respond_success (is_verified: bool) -> hyper::Response<Body> {
+    // construct response based on verification status
+    match is_verified {
+        true => {
+            Response::builder()
+                .status(StatusCode::OK)
+                .body(Body::empty())
+                .unwrap()
+        },
+        _ => {
+            Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(Body::empty())
+                .unwrap()
+        }
     }
 }
-*/
-
-
-/*
-fn redirect_home() -> ResponseFuture {
-    Box::new(future::ok(
-        Response::builder()
-            .status(StatusCode::SEE_OTHER)
-            .header(header::LOCATION, "/")
-            .body(Body::from("abba"))
-            .unwrap(),
-    ))
-}*/
 
 fn main() {
     // Listen on http socket port 2884 - "auth" in phonespell

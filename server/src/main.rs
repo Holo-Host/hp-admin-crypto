@@ -3,10 +3,14 @@ extern crate hyper;
 use hyper::{service, Request, Response, Body, Server, StatusCode};
 use hyper::header::{HeaderMap, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
+use serde_json::json;
 
 // Create response based on the request parameters
 fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let (parts, body) = req.into_parts();
+
+    // TODO: pass into create_payload value of Header "X-Forwarded-For" as an uri rather than parts.uri
+    // TODO: Make sure that payload passed to verification matches that from the frontend
 
     match parts.uri.path() {
         "/" => {
@@ -28,8 +32,14 @@ fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Erro
 }
 
 fn create_payload (method: String, uri: String, body_string: String) -> String {
-    println!("Method: {}\nUri: {}\nBody: {}\n", method, uri, body_string);
-    "abba".to_string()
+    let d = json!({
+        "method": method,
+        "uri": uri,
+        "body": body_string
+    }); 
+
+    // Serialize it to a JSON string.
+    serde_json::to_string(&d).unwrap()
 }
 
 fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {

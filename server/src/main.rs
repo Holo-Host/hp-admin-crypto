@@ -9,21 +9,24 @@ use ed25519_dalek::{PublicKey, PUBLIC_KEY_LENGTH, Signature};
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
+    static ref X_FORWARDED_FOR: HeaderName = HeaderName::from_lowercase(b"x-forwarded-for").unwrap();
 }
 
 // Create response based on the request parameters
 fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let (parts, body) = req.into_parts();
 
-    // TODO: pass into create_payload value of Header "X-Forwarded-For" as an uri rather than parts.uri
-    // TODO: Make sure that payload passed to verification matches that from the frontend
-
     match parts.uri.path() {
         "/" => {
             let entire_body = body.concat2();
             let res = entire_body.map(move |body| {
+                // Extract X-Forwarded-For header value, panic for no header
+                let req_uri = match parts.headers.get(&*X_FORWARDED_FOR) {
+                    Some(s) => s.to_str().unwrap(),
+                    None => panic!("Request does not contain \"X-Forwarded-For\" header."),
+                };
                 let body_string = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
-                let payload = create_payload(parts.method.to_string(), parts.uri.to_string(), body_string);
+                let payload = create_payload(parts.method.to_string(), req_uri.to_string(), body_string);
                 let is_verified = verify_request(payload, parts.headers);
                 respond_success(is_verified)
             });
@@ -63,7 +66,7 @@ fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
 
     println!("Signature: {}", signature);
     // Convert signature from base64 to Signature type and 401 on error
-    // TODO: base64 decode signature first. Which lib?
+    // TODO: base64 decode signature first. Which lib? https://docs.rs/subtle-encoding/0.3.4/subtle_encoding/base64/index.html
     let signature_bytes = match Signature::from_bytes(&signature.as_bytes()) {
         Ok(s) => s,
         _ => return false,

@@ -1,7 +1,7 @@
 extern crate hyper;
 
 use hyper::{service, Request, Response, Body, Server, StatusCode};
-use hyper::header::{HeaderMap, HeaderValue};
+use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
 use serde_json::json;
 
@@ -43,10 +43,22 @@ fn create_payload (method: String, uri: String, body_string: String) -> String {
 }
 
 fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
+    // Peek into vars
     println!("Payload: {}", payload);
     for (key, value) in headers.iter() {
         println!("Header: {:?}: {:?}", key, value);
     }
+
+    // Retrieve X-Hpos-Admin-Signature
+    let X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
+    let signature = match headers.get(X_HPOS_ADMIN_SIGNATURE) {
+        Some(s) => s.to_str().unwrap(),
+        None => return false,
+    };
+
+    println!("Signature: {}", signature);
+
+    // verify payload
     true
 }
 

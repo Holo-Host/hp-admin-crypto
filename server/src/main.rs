@@ -4,6 +4,12 @@ use hyper::{service, Request, Response, Body, Server, StatusCode};
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
 use serde_json::json;
+use lazy_static::lazy_static;
+use ed25519_dalek::{PublicKey, PUBLIC_KEY_LENGTH, Signature};
+
+lazy_static! {
+    static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
+}
 
 // Create response based on the request parameters
 fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
@@ -50,16 +56,32 @@ fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
     }
 
     // Retrieve X-Hpos-Admin-Signature
-    let X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
-    let signature = match headers.get(X_HPOS_ADMIN_SIGNATURE) {
+    let signature = match headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         Some(s) => s.to_str().unwrap(),
         None => return false,
     };
 
     println!("Signature: {}", signature);
+    // Convert signature from base64 to Signature type and 401 on error
+    // TODO: base64 decode signature first. Which lib?
+    let signature_bytes = match Signature::from_bytes(&signature.as_bytes()) {
+        Ok(s) => s,
+        _ => return false,
+    };
+
+    // TODO: Retrieve Admin's signing key from HPOS
+    let public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [
+   215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201, 100,   7,  58,
+    14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,   7,   81, 26];
+
+    // Convert public key to PublicKey type, panic if not successful
+    let public_key = PublicKey::from_bytes(&public_key_bytes).unwrap();
 
     // verify payload
-    true
+    match public_key.verify(&payload.as_bytes(), &signature_bytes) {
+        Ok(_) => return true,
+        _ => return false
+    }
 }
 
 fn respond_success (is_verified: bool) -> hyper::Response<Body> {

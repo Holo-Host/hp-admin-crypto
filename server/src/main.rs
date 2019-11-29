@@ -6,10 +6,12 @@ use futures::{future::{self, Either}, Future, Stream};
 use serde_json::json;
 use lazy_static::lazy_static;
 use ed25519_dalek::{PublicKey, PUBLIC_KEY_LENGTH, Signature};
+use std::env;
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_FORWARDED_FOR: HeaderName = HeaderName::from_lowercase(b"x-forwarded-for").unwrap();
+    static ref HP_PUBLIC_KEY: PublicKey = read_hp_pubkey();
 }
 
 // Create response based on the request parameters
@@ -52,19 +54,12 @@ fn create_payload (method: String, uri: String, body_string: String) -> String {
 }
 
 fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
-    // Peek into vars
-    println!("Payload: {}", payload);
-    for (key, value) in headers.iter() {
-        println!("Header: {:?}: {:?}", key, value);
-    }
-
     // Retrieve X-Hpos-Admin-Signature
     let signature = match headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         Some(s) => s.to_str().unwrap(),
         None => return false,
     };
 
-    println!("Signature: {}", signature);
     // Convert signature from base64 to Signature type and 401 on error
     // TODO: base64 decode signature first. Which lib? https://docs.rs/subtle-encoding/0.3.4/subtle_encoding/base64/index.html
     let signature_bytes = match Signature::from_bytes(&signature.as_bytes()) {
@@ -72,14 +67,7 @@ fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
         _ => return false,
     };
 
-    // TODO: Retrieve Admin's signing key from HPOS
-    let public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [
-   215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201, 100,   7,  58,
-    14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,   7,   81, 26];
-
-    // Convert public key to PublicKey type, panic if not successful
-    let public_key = PublicKey::from_bytes(&public_key_bytes).unwrap();
-
+    let public_key = &*HP_PUBLIC_KEY;
     // verify payload
     match public_key.verify(&payload.as_bytes(), &signature_bytes) {
         Ok(_) => return true,
@@ -105,9 +93,31 @@ fn respond_success (is_verified: bool) -> hyper::Response<Body> {
     }
 }
 
+fn read_hp_pubkey() -> PublicKey {
+    println!("Reading HP Admin Public Key from ...");
+
+    let hpos_state_path = env::var("HPOS_STATE_PATH").expect("HPOS_STATE_PATH environmental variable is not present");
+
+    // Read from path
+
+    // parse file
+
+    // extract HPAdminPubKey as ... (what?)
+
+    let public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [
+        215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201, 100,   7,  58,
+        14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,   7,   81, 26];
+
+    // Convert public key to PublicKey type, panic if not successful
+    PublicKey::from_bytes(&public_key_bytes).unwrap()
+}
+
 fn main() {
     // Listen on http socket port 2884 - "auth" in phonespell
     let listen_address = ([127,0,0,1], 2884).into();
+
+    // Trigger lazy static to see if HP_PUBLIC_KEY assignment creates panic
+    let _ = &*HP_PUBLIC_KEY;
 
     // Create a `Service` from servicing function
     let new_svc = || {

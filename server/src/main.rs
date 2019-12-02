@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 use ed25519_dalek::{PublicKey, Signature};
 use std::{env, fs};
 use hpos_state_core::state::State;
+use base64::decode_config;
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
@@ -55,15 +56,20 @@ fn create_payload (method: String, uri: String, body_string: String) -> String {
 }
 
 fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
-    // Retrieve X-Hpos-Admin-Signature
-    let signature = match headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+    // Retrieve X-Hpos-Admin-Signature, 401 on error
+    let signature_base64 = match headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         Some(s) => s.to_str().unwrap(),
         None => return false,
     };
 
-    // Convert signature from base64 to Signature type and 401 on error
-    // TODO: base64 decode signature first. Which lib? https://docs.rs/subtle-encoding/0.3.4/subtle_encoding/base64/index.html
-    let signature_bytes = match Signature::from_bytes(&signature.as_bytes()) {
+    // Base64 decode signature, 401 on error
+    let signature_vec = match decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
+        Ok(s) => s,
+        _ => return false,
+    };
+
+    // Convert signature to Signature type, 401 on error
+    let signature_bytes = match Signature::from_bytes(&signature_vec) {
         Ok(s) => s,
         _ => return false,
     };

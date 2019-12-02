@@ -5,8 +5,9 @@ use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
 use serde_json::json;
 use lazy_static::lazy_static;
-use ed25519_dalek::{PublicKey, PUBLIC_KEY_LENGTH, Signature};
-use std::env;
+use ed25519_dalek::{PublicKey, Signature};
+use std::{env, fs};
+use hpos_state_core::state::State;
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
@@ -21,7 +22,7 @@ fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Erro
     match parts.uri.path() {
         "/" => {
             let entire_body = body.concat2();
-            let res = entire_body.map(move |body| {
+            let res = entire_body.map( |body| {
                 // Extract X-Forwarded-For header value, panic for no header
                 let req_uri = match parts.headers.get(&*X_FORWARDED_FOR) {
                     Some(s) => s.to_str().unwrap(),
@@ -94,22 +95,17 @@ fn respond_success (is_verified: bool) -> hyper::Response<Body> {
 }
 
 fn read_hp_pubkey() -> PublicKey {
-    println!("Reading HP Admin Public Key from ...");
-
     let hpos_state_path = env::var("HPOS_STATE_PATH").expect("HPOS_STATE_PATH environmental variable is not present");
 
+    println!("Reading HP Admin Public Key from {}.", hpos_state_path);
+
     // Read from path
+    let contents = fs::read(hpos_state_path)
+        .expect("Something went wrong reading HP Admin Public Key from file");
 
-    // parse file
-
-    // extract HPAdminPubKey as ... (what?)
-
-    let public_key_bytes: [u8; PUBLIC_KEY_LENGTH] = [
-        215,  90, 152,   1, 130, 177,  10, 183, 213,  75, 254, 211, 201, 100,   7,  58,
-        14, 225, 114, 243, 218, 166,  35,  37, 175,   2,  26, 104, 247,   7,   81, 26];
-
-    // Convert public key to PublicKey type, panic if not successful
-    PublicKey::from_bytes(&public_key_bytes).unwrap()
+    // Parse content
+    let hpos_state: State = serde_json::from_slice(&contents).unwrap();
+    hpos_state.get_admin_public_key().expect("HP Admin Public key seems to be corrupted")
 }
 
 fn main() {

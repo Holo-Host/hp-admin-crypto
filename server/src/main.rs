@@ -12,7 +12,7 @@ use base64::decode_config;
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
-    static ref X_FORWARDED_FOR: HeaderName = HeaderName::from_lowercase(b"x-forwarded-for").unwrap();
+    static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
     static ref HP_PUBLIC_KEY: PublicKey = read_hp_pubkey();
 }
 
@@ -24,10 +24,10 @@ fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Erro
         "/" => {
             let entire_body = body.concat2();
             let res = entire_body.map( |body| {
-                // Extract X-Forwarded-For header value, panic for no header
-                let req_uri = match parts.headers.get(&*X_FORWARDED_FOR) {
+                // Extract X-Original-URI header value, panic for no header
+                let req_uri = match parts.headers.get(&*X_ORIGINAL_URI) {
                     Some(s) => s.to_str().unwrap(),
-                    None => panic!("Request does not contain \"X-Forwarded-For\" header."),
+                    None => panic!("Request does not contain \"X-Original-URI\" header."),
                 };
                 let body_string = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
                 let payload = create_payload(parts.method.to_string(), req_uri.to_string(), body_string);
@@ -46,7 +46,7 @@ fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Erro
 
 fn create_payload (method: String, uri: String, body_string: String) -> String {
     let d = json!({
-        "method": method,
+        "method": method.to_lowercase(), // make sure verb is to lowercase
         "uri": uri,
         "body": body_string
     }); 

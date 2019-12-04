@@ -17,7 +17,7 @@ lazy_static! {
 }
 
 // Create response based on the request parameters
-fn crete_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
+fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let (parts, body) = req.into_parts();
 
     match parts.uri.path() {
@@ -56,26 +56,26 @@ fn create_payload (method: String, uri: String, body_string: String) -> String {
 }
 
 fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
-    // Retrieve X-Hpos-Admin-Signature, 401 on error
+    // Retrieve X-Hpos-Admin-Signature, direct to 401 on error
     let signature_base64 = match headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         Some(s) => s.to_str().unwrap(),
         None => return false,
     };
 
-    // Base64 decode signature, 401 on error
+    // Base64 decode signature, direct to 401 on error
     let signature_vec = match decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
         Ok(s) => s,
         _ => return false,
     };
 
-    // Convert signature to Signature type, 401 on error
+    // Convert signature to Signature type, direct to 401 on error
     let signature_bytes = match Signature::from_bytes(&signature_vec) {
         Ok(s) => s,
         _ => return false,
     };
 
     let public_key = &*HP_PUBLIC_KEY;
-    // verify payload
+    // verify payload, direct to 401 on error
     match public_key.verify(&payload.as_bytes(), &signature_bytes) {
         Ok(_) => return true,
         _ => return false
@@ -123,7 +123,7 @@ fn main() {
 
     // Create a `Service` from servicing function
     let new_svc = || {
-        service::service_fn(crete_response)
+        service::service_fn(create_response)
     };
 
     let server = Server::bind(&listen_address)

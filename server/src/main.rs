@@ -31,7 +31,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 };
                 let body_string = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
                 let payload = create_payload(parts.method.to_string(), req_uri.to_string(), body_string);
-                let is_verified = verify_request(payload, parts.headers);
+                let is_verified = verify_request(payload, parts.headers, &HP_PUBLIC_KEY);
                 respond_success(is_verified)
             });
 
@@ -55,31 +55,17 @@ fn create_payload (method: String, uri: String, body_string: String) -> String {
     serde_json::to_string(&d).unwrap()
 }
 
-fn verify_request(payload: String, headers: HeaderMap<HeaderValue>) -> bool {
-    // Retrieve X-Hpos-Admin-Signature, direct to 401 on error
-    let signature_base64 = match headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
-        Some(s) => s.to_str().unwrap(),
-        None => return false,
-    };
-
-    // Base64 decode signature, direct to 401 on error
-    let signature_vec = match decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
-        Ok(s) => s,
-        _ => return false,
-    };
-
-    // Convert signature to Signature type, direct to 401 on error
-    let signature_bytes = match Signature::from_bytes(&signature_vec) {
-        Ok(s) => s,
-        _ => return false,
-    };
-
-    let public_key = &*HP_PUBLIC_KEY;
-    // verify payload, direct to 401 on error
-    match public_key.verify(&payload.as_bytes(), &signature_bytes) {
-        Ok(_) => return true,
-        _ => return false
+fn verify_request(payload: String, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> bool {
+    if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+        if let Ok(signature_vec) = decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
+            if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
+                if public_key.verify(&payload.as_bytes(), &signature_bytes).is_ok() {
+                    return true
+                }
+            }
+        }
     }
+    return false
 }
 
 fn respond_success (is_verified: bool) -> hyper::Response<Body> {
@@ -136,4 +122,35 @@ fn main() {
 
     // Run forever
     hyper::rt::run(server);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek;
+    use std::convert::From;
+
+    #[test]
+    fn verify_request_smoke() {
+        // Get a legit request_hash signature, agent_id
+        let secret: [u8; 32] = [0_u8; 32];
+        let secret_key = ed25519_dalek::SecretKey::from_bytes( &secret ).unwrap();
+        let public_key = ed25519_dalek::PublicKey::from( &secret_key );
+        let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from( &secret_key );
+
+        // Now lets sign some body payload
+        let body = json!({
+            "something": "interesting"
+        });
+        let body_json = serde_json::to_string( &body ).unwrap();
+
+        let signature = secret_key_exp.sign( body_json.as_bytes(), &public_key );
+        let mut signature_base64 = String::new();
+        base64::encode_config_buf(signature.to_bytes().as_ref(), base64::STANDARD, &mut signature_base64);
+
+        let mut headers = HeaderMap::new();
+        headers.insert( "x-hpos-admin-signature", signature_base64.parse().unwrap() );
+
+        assert_eq!( verify_request( body_json, headers, &public_key ), true )
+    }
 }

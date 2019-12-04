@@ -10,8 +10,8 @@ in
 {
   hp-admin-authorize = buildRustPackage rustPlatform {
     name = "hp-admin-authorize";
-    src = gitignoreSource ./.;
-    cargoDir = "server";
+    src = gitignoreSource ./server;
+    cargoDir = ".";
 
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
 

@@ -57,7 +57,7 @@ fn create_payload (method: String, uri: String, body_string: String) -> String {
 
 fn verify_request(payload: String, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> bool {
     if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
-        if let Ok(signature_vec) = decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
+        if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
             if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
                 if public_key.verify(&payload.as_bytes(), &signature_bytes).is_ok() {
                     return true
@@ -97,7 +97,7 @@ fn read_hp_pubkey() -> PublicKey {
 
     // Parse content
     let hpos_state: State = serde_json::from_slice(&contents).unwrap();
-    hpos_state.get_admin_public_key().expect("HP Admin Public key seems to be corrupted")
+    hpos_state.admin_public_key()
 }
 
 fn main() {
@@ -127,49 +127,49 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ed25519_dalek;
+    use ed25519_dalek::{self, SECRET_KEY_LENGTH};
     use std::convert::From;
 
     #[test]
     fn verify_request_smoke() {
         // Get a legit request_hash signature, agent_id
-        let secret: [u8; 32] = [0_u8; 32];
-        let secret_key = ed25519_dalek::SecretKey::from_bytes( &secret ).unwrap();
-        let public_key = ed25519_dalek::PublicKey::from( &secret_key );
-        let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from( &secret_key );
+        let secret: [u8; 32] = [0_u8; SECRET_KEY_LENGTH];
+        let secret_key = ed25519_dalek::SecretKey::from_bytes(&secret).unwrap();
+        let public_key = ed25519_dalek::PublicKey::from(&secret_key);
+        let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from(&secret_key);
 
-        // Now lets sign some body payload
-        let body = json!({
+        // Now lets sign some payload
+        let payload = json!({
             "something": "interesting"
         });
-        let body_json = serde_json::to_string( &body ).unwrap();
+        let body_json = serde_json::to_string(&payload).unwrap();
 
-        let signature = secret_key_exp.sign( body_json.as_bytes(), &public_key );
+        let signature = secret_key_exp.sign(body_json.as_bytes(), &public_key);
         let mut signature_base64 = String::new();
-        base64::encode_config_buf(signature.to_bytes().as_ref(), base64::STANDARD, &mut signature_base64);
+        base64::encode_config_buf(signature.to_bytes().as_ref(), base64::STANDARD_NO_PAD, &mut signature_base64);
 
         let mut headers = HeaderMap::new();
-        headers.insert( "x-hpos-admin-signature", signature_base64.parse().unwrap() );
+        headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
-        assert_eq!( verify_request( body_json, headers, &public_key ), true )
+        assert_eq!(verify_request(body_json, headers, &public_key), true)
     }
 	
 	#[test]
     fn verify_request_fail() {
         // Get a legit request_hash signature, agent_id
-        let secret: [u8; 32] = [0_u8; 32];
-        let secret_key = ed25519_dalek::SecretKey::from_bytes( &secret ).unwrap();
-        let public_key = ed25519_dalek::PublicKey::from( &secret_key );
+        let secret: [u8; 32] = [0_u8; SECRET_KEY_LENGTH];
+        let secret_key = ed25519_dalek::SecretKey::from_bytes(&secret).unwrap();
+        let public_key = ed25519_dalek::PublicKey::from(&secret_key);
 
-        // Now lets sign some body payload
-        let body = json!({
+        // Now lets sign some payload
+        let payload = json!({
             "something": "interesting"
         });
-        let body_json = serde_json::to_string( &body ).unwrap();
+        let body_json = serde_json::to_string(&payload).unwrap();
 
         let mut headers = HeaderMap::new();
-        headers.insert( "x-hpos-admin-signature", "Wrong signature".parse().unwrap() );
+        headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
 
-        assert_eq!( verify_request( body_json, headers, &public_key ), false )
+        assert_eq!(verify_request( body_json, headers, &public_key ), false)
     }
 }

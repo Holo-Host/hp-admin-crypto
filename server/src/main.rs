@@ -153,4 +153,23 @@ mod tests {
 
         assert_eq!( verify_request( body_json, headers, &public_key ), true )
     }
+	
+	#[test]
+    fn verify_request_fail() {
+        // Get a legit request_hash signature, agent_id
+        let secret: [u8; 32] = [0_u8; 32];
+        let secret_key = ed25519_dalek::SecretKey::from_bytes( &secret ).unwrap();
+        let public_key = ed25519_dalek::PublicKey::from( &secret_key );
+
+        // Now lets sign some body payload
+        let body = json!({
+            "something": "interesting"
+        });
+        let body_json = serde_json::to_string( &body ).unwrap();
+
+        let mut headers = HeaderMap::new();
+        headers.insert( "x-hpos-admin-signature", "Wrong signature".parse().unwrap() );
+
+        assert_eq!( verify_request( body_json, headers, &public_key ), false )
+    }
 }

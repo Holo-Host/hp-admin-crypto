@@ -34,14 +34,23 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
         "/" => {
             let entire_body = body.concat2();
             let res = entire_body.map( |body| {
-                // Extract X-Original-URI header value, panic for no header
-                let req_uri_string = match parts.headers.get(&*X_ORIGINAL_URI) {
-                    Some(s) => s.to_str().unwrap().to_string(),
+                // Extract X-Original-URI header value, 401 when problems occur
+                let req_uri_str = match parts.headers.get(&*X_ORIGINAL_URI) {
+                    Some(s) => s.to_str(),
                     None => {
 						debug!("Received request with no \"X-Original-URI\" header.");
 						return respond_success(false);
 					},
                 };
+
+				let req_uri_string = match req_uri_str {
+					Ok(s) => s.to_string(),
+					_ => {
+						debug!("Could not parse \"X-Original-URI\" header value.");
+						return respond_success(false);
+					}
+				}; 
+
 				debug!("Processing signature verification request for URI {}", req_uri_string);
 
                 let body_string = match String::from_utf8(body.to_vec()) {

@@ -3,17 +3,24 @@ extern crate hyper;
 use hyper::{service, Request, Response, Body, Server, StatusCode};
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
-use serde_json::json;
+use serde::{Serialize, Deserialize};
 use lazy_static::lazy_static;
 use ed25519_dalek::{PublicKey, Signature};
 use std::{env, fs};
 use hpos_state_core::state::State;
-use base64::decode_config;
+use base64;
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
     static ref HP_PUBLIC_KEY: PublicKey = read_hp_pubkey();
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Payload {
+	method: String, 
+	uri: String, 
+	body_string: String
 }
 
 // Create response based on the request parameters
@@ -25,12 +32,18 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
             let entire_body = body.concat2();
             let res = entire_body.map( |body| {
                 // Extract X-Original-URI header value, panic for no header
-                let req_uri = match parts.headers.get(&*X_ORIGINAL_URI) {
-                    Some(s) => s.to_str().unwrap(),
+                let req_uri_string = match parts.headers.get(&*X_ORIGINAL_URI) {
+                    Some(s) => s.to_str().unwrap().to_string(),
                     None => panic!("Request does not contain \"X-Original-URI\" header."),
                 };
                 let body_string = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
-                let payload = create_payload(parts.method.to_string(), req_uri.to_string(), body_string);
+
+				let payload = Payload {
+					method: parts.method.to_string(), 
+					uri: req_uri_string, 
+					body_string: body_string
+				};
+
                 let is_verified = verify_request(payload, parts.headers, &HP_PUBLIC_KEY);
                 respond_success(is_verified)
             });
@@ -44,22 +57,13 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn create_payload (method: String, uri: String, body_string: String) -> String {
-    let d = json!({
-        "method": method.to_lowercase(), // make sure verb is to lowercase
-        "uri": uri,
-        "body": body_string
-    }); 
-
-    // Serialize it to a JSON string.
-    serde_json::to_string(&d).unwrap()
-}
-
-fn verify_request(payload: String, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> bool {
+fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> bool {
+	let payload_vec = serde_json::to_vec(&payload).unwrap();
+	
     if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
             if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
-                if public_key.verify(&payload.as_bytes(), &signature_bytes).is_ok() {
+                if public_key.verify(&payload_vec, &signature_bytes).is_ok() {
                     return true
                 }
             }
@@ -139,19 +143,20 @@ mod tests {
         let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from(&secret_key);
 
         // Now lets sign some payload
-        let payload = json!({
-            "something": "interesting"
-        });
-        let body_json = serde_json::to_string(&payload).unwrap();
+		let payload = Payload {
+			method: "get".to_string(), 
+			uri: "/abba".to_string(), 
+			body_string: "\"something\": \"interesting\"".to_string()
+		};
 
-        let signature = secret_key_exp.sign(body_json.as_bytes(), &public_key);
+        let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
         let mut signature_base64 = String::new();
         base64::encode_config_buf(signature.to_bytes().as_ref(), base64::STANDARD_NO_PAD, &mut signature_base64);
 
         let mut headers = HeaderMap::new();
         headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
-        assert_eq!(verify_request(body_json, headers, &public_key), true)
+        assert_eq!(verify_request(payload, headers, &public_key), true)
     }
 	
 	#[test]
@@ -162,14 +167,15 @@ mod tests {
         let public_key = ed25519_dalek::PublicKey::from(&secret_key);
 
         // Now lets sign some payload
-        let payload = json!({
-            "something": "interesting"
-        });
-        let body_json = serde_json::to_string(&payload).unwrap();
+		let payload = Payload {
+			method: "get".to_string(), 
+			uri: "/abba".to_string(), 
+			body_string: "\"something\": \"interesting\"".to_string()
+		};
 
         let mut headers = HeaderMap::new();
         headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
 
-        assert_eq!(verify_request( body_json, headers, &public_key ), false)
+        assert_eq!(verify_request(payload, headers, &public_key), false)
     }
 }

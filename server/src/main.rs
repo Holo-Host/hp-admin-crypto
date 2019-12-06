@@ -3,12 +3,16 @@ extern crate hyper;
 use hyper::{service, Request, Response, Body, Server, StatusCode};
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 use futures::{future::{self, Either}, Future, Stream};
+
 use serde::{Serialize, Deserialize};
 use lazy_static::lazy_static;
-use ed25519_dalek::{PublicKey, Signature};
 use std::{env, fs};
+use std::error::Error;
+
+use ed25519_dalek::{PublicKey, Signature};
 use hpos_state_core::state::State;
-use base64;
+
+use log::{info, debug, error};
 
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
@@ -93,7 +97,7 @@ fn respond_success (is_verified: bool) -> hyper::Response<Body> {
 fn read_hp_pubkey() -> PublicKey {
     let hpos_state_path = env::var("HPOS_STATE_PATH").expect("HPOS_STATE_PATH environmental variable is not present");
 
-    println!("Reading HP Admin Public Key from {}.", hpos_state_path);
+    info!("Reading HP Admin Public Key from {}.", hpos_state_path);
 
     // Read from path
     let contents = fs::read(hpos_state_path)
@@ -104,7 +108,9 @@ fn read_hp_pubkey() -> PublicKey {
     hpos_state.admin_public_key()
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
+	env_logger::init();
+
     // Listen on http socket port 2884 - "auth" in phonespell
     let listen_address = ([127,0,0,1], 2884).into();
 
@@ -122,10 +128,12 @@ fn main() {
             eprintln!("server error: {}", e);
         });
 
-    println!("Listening on http://{}", listen_address);
+    info!("Listening on http://{}", listen_address);
 
     // Run forever
     hyper::rt::run(server);
+
+	Ok(())
 }
 
 #[cfg(test)]

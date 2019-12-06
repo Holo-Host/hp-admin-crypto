@@ -17,7 +17,6 @@ use log::{info, debug, error};
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
-    static ref HP_PUBLIC_KEY: PublicKey = read_hp_pubkey();
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -59,7 +58,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
 					body_string: body_string
 				};
 
-                let is_verified = match verify_request(payload, parts.headers, &HP_PUBLIC_KEY) {
+                let is_verified = match verify_request(payload, parts.headers) {
 					Ok(b) => b,
 					Err(e) => {
 						debug!("Error while verifying signature: {}", e);
@@ -79,7 +78,9 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> Result<bool, Box<dyn Error>> {
+fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>) -> Result<bool, Box<dyn Error>> {
+	let public_key = read_hp_pubkey()?;
+	
 	let payload_vec = serde_json::to_vec(&payload)?;
 	
     if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
@@ -115,19 +116,37 @@ fn respond_success (is_verified: bool) -> hyper::Response<Body> {
     }
 }
 
-// TODO: rebuild to log errors and be triggered on each request and cache val if successful
-fn read_hp_pubkey() -> PublicKey {
-    let hpos_state_path = env::var("HPOS_STATE_PATH").expect("HPOS_STATE_PATH environmental variable is not present");
+fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
+	// TODO: Here check for existence of PublicKey and return if exists, otherwise read from file
+    info!("Reading HP Admin Public Key from file.");
 
-    info!("Reading HP Admin Public Key from {}.", hpos_state_path);
+	let hpos_state_path = match env::var("HPOS_STATE_PATH") {
+		Ok(s) => s,
+		Err(e) => {
+			error!("HPOS_STATE_PATH: {}", e);
+			return Err("Can't read HP Admin PublicKey from file.")?;
+		}
+	};
 
     // Read from path
-    let contents = fs::read(hpos_state_path)
-        .expect("Something went wrong reading HP Admin Public Key from file");
+	let contents = match fs::read(&hpos_state_path) {
+		Ok(s) => s,
+		Err(e) => {
+			error!("Error reading file {}: {}", &hpos_state_path, e);
+			return Err("Can't read HP Admin PublicKey from file.")?;
+		}
+	};
 
     // Parse content
-    let hpos_state: State = serde_json::from_slice(&contents).unwrap();
-    hpos_state.admin_public_key()
+	let hpos_state: State = match serde_json::from_slice(&contents) {
+		Ok(s) => s,
+		Err(e) => {
+			error!("Error reading HP Admin Public Key from file: {}", e);
+			return Err("Can't read HP Admin PublicKey from file.")?;
+		}
+	};
+
+    Ok(hpos_state.admin_public_key())
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -135,9 +154,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Listen on http socket port 2884 - "auth" in phonespell
     let listen_address = ([127,0,0,1], 2884).into();
-
-    // Trigger lazy static to see if HP_PUBLIC_KEY assignment creates panic
-    let _ = &*HP_PUBLIC_KEY;
 
     // Create a `Service` from servicing function
     let new_svc = || {

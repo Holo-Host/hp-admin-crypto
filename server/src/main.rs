@@ -38,9 +38,20 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 // Extract X-Original-URI header value, panic for no header
                 let req_uri_string = match parts.headers.get(&*X_ORIGINAL_URI) {
                     Some(s) => s.to_str().unwrap().to_string(),
-                    None => panic!("Request does not contain \"X-Original-URI\" header."),
+                    None => {
+						debug!("Received request with no \"X-Original-URI\" header.");
+						return respond_success(false);
+					},
                 };
-                let body_string = String::from_utf8(body.to_vec()).expect("Found invalid UTF-8");
+				debug!("Processing signature verification request for URI {}", req_uri_string);
+
+                let body_string = match String::from_utf8(body.to_vec()) {
+					Ok(s) => s,
+					Err(e) => {
+						debug!("Error parsing request body: {}", e);
+						return respond_success(false);
+					}
+				};
 
 				let payload = Payload {
 					method: parts.method.to_string(), 
@@ -48,7 +59,14 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
 					body_string: body_string
 				};
 
-                let is_verified = verify_request(payload, parts.headers, &HP_PUBLIC_KEY);
+                let is_verified = match verify_request(payload, parts.headers, &HP_PUBLIC_KEY) {
+					Ok(b) => b,
+					Err(e) => {
+						debug!("Error while verifying signature: {}", e);
+						return respond_success(false);
+					}
+				};
+
                 respond_success(is_verified)
             });
 
@@ -61,19 +79,22 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> bool {
-	let payload_vec = serde_json::to_vec(&payload).unwrap();
+fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>, public_key: &PublicKey) -> Result<bool, Box<dyn Error>> {
+	let payload_vec = serde_json::to_vec(&payload)?;
 	
     if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
             if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
                 if public_key.verify(&payload_vec, &signature_bytes).is_ok() {
-                    return true
+					debug!("Signature verified successfully");
+                    return Ok(true);
                 }
             }
         }
     }
-    return false
+
+	debug!("Signature verified unsuccessfully");
+    return Ok(false)
 }
 
 fn respond_success (is_verified: bool) -> hyper::Response<Body> {
@@ -94,6 +115,7 @@ fn respond_success (is_verified: bool) -> hyper::Response<Body> {
     }
 }
 
+// TODO: rebuild to log errors and be triggered on each request and cache val if successful
 fn read_hp_pubkey() -> PublicKey {
     let hpos_state_path = env::var("HPOS_STATE_PATH").expect("HPOS_STATE_PATH environmental variable is not present");
 
@@ -125,7 +147,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let server = Server::bind(&listen_address)
         .serve(new_svc)
         .map_err(|e| {
-            eprintln!("server error: {}", e);
+            error!("server error: {}", e);
         });
 
     info!("Listening on http://{}", listen_address);

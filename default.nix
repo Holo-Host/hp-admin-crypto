@@ -4,18 +4,15 @@ with pkgs;
 
 let
   inherit (rust.packages.nightly) rustPlatform;
-  inherit (darwin.apple_sdk.frameworks) CoreServices Security;
+  inherit (darwin.apple_sdk.frameworks) Security;
 in
 
 {
-  hp-admin-authorize = buildRustPackage rustPlatform {
-    name = "hp-admin-authorize";
-    src = gitignoreSource ./.;
-    cargoDir = "server";
+  hp-admin-crypto-server = buildRustPackage rustPlatform {
+    name = "hp-admin-crypto-server";
+    src = gitignoreSource ./server;
+    cargoDir = ".";
 
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
-
-    doCheck = false;
   };
-
 }

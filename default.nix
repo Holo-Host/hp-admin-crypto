@@ -8,8 +8,8 @@ let
 in
 
 {
-  hp-admin-authorize = buildRustPackage rustPlatform {
-    name = "hp-admin-authorize";
+  hp-admin-crypto-server = buildRustPackage rustPlatform {
+    name = "hp-admin-crypto-server";
     src = gitignoreSource ./server;
     cargoDir = ".";
 
@@ -17,5 +17,4 @@ in
 
     doCheck = false;
   };
-
 }

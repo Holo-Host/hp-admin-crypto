@@ -14,7 +14,5 @@ in
     cargoDir = ".";
 
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
-
-    doCheck = false;
   };
 }

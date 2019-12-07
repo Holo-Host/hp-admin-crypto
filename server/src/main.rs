@@ -8,6 +8,7 @@ use serde::{Serialize, Deserialize};
 use lazy_static::lazy_static;
 use std::{env, fs};
 use std::error::Error;
+use std::sync::Mutex;
 
 use ed25519_dalek::{PublicKey, Signature};
 use hpos_state_core::state::State;
@@ -17,6 +18,7 @@ use log::{info, debug, error};
 lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName = HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
+	static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -126,7 +128,12 @@ fn respond_success (is_verified: bool) -> hyper::Response<Body> {
 }
 
 fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
-	// TODO: Here check for existence of PublicKey and return if exists, otherwise read from file
+	// Read cached value from HP_PUBLIC_KEY
+	if let Some(pub_key) = *HP_PUBLIC_KEY.lock()? {
+		debug!("Returning HP_PUBLIC_KEY from cache");
+		return Ok(pub_key);
+	}
+
     info!("Reading HP Admin Public Key from file.");
 
 	let hpos_state_path = match env::var("HPOS_STATE_PATH") {
@@ -155,7 +162,11 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
 		}
 	};
 
-    Ok(hpos_state.admin_public_key())
+	// Update cached value in HP_PUBLIC_KEY
+	let pub_key = hpos_state.admin_public_key();
+	*HP_PUBLIC_KEY.lock()? = Some(pub_key);
+
+    Ok(pub_key)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

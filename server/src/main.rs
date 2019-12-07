@@ -69,7 +69,15 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
 					body_string: body_string
 				};
 
-                let is_verified = match verify_request(payload, parts.headers) {
+				let public_key = match read_hp_pubkey() {
+					Ok(pk) => pk,
+					Err(e) => {
+						debug!("{}", e);
+						return respond_success(false);
+					}
+				};
+
+                let is_verified = match verify_request(payload, parts.headers, public_key) {
 					Ok(b) => b,
 					Err(e) => {
 						debug!("Error while verifying signature: {}", e);
@@ -89,9 +97,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>) -> Result<bool, Box<dyn Error>> {
-	let public_key = read_hp_pubkey()?;
-	
+fn verify_request(payload: Payload, headers: HeaderMap<HeaderValue>, public_key: PublicKey) -> Result<bool, Box<dyn Error>> {
 	let payload_vec = serde_json::to_vec(&payload)?;
 	
     if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
@@ -220,17 +226,16 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
-        assert_eq!(verify_request(payload, headers, &public_key), true)
+        assert_eq!(verify_request(payload, headers, public_key).unwrap(), true)
     }
 	
 	#[test]
     fn verify_request_fail() {
-        // Get a legit request_hash signature, agent_id
+		// Get a legit request_hash signature, agent_id
         let secret: [u8; 32] = [0_u8; SECRET_KEY_LENGTH];
         let secret_key = ed25519_dalek::SecretKey::from_bytes(&secret).unwrap();
         let public_key = ed25519_dalek::PublicKey::from(&secret_key);
 
-        // Now lets sign some payload
 		let payload = Payload {
 			method: "get".to_string(), 
 			uri: "/abba".to_string(), 
@@ -240,6 +245,6 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
 
-        assert_eq!(verify_request(payload, headers, &public_key), false)
+        assert_eq!(verify_request(payload, headers, public_key).unwrap(), false)
     }
 }

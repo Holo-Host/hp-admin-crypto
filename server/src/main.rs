@@ -169,7 +169,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     Ok(pub_key)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
 	env_logger::init();
 
     // Listen on http socket port 2884 - "auth" in phonespell
@@ -190,8 +190,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Run forever
     hyper::rt::run(server);
-
-	Ok(())
 }
 
 #[cfg(test)]

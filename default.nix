@@ -4,7 +4,7 @@ with pkgs;
 
 let
   inherit (rust.packages.nightly) rustPlatform;
-  inherit (darwin.apple_sdk.frameworks) CoreServices Security;
+  inherit (darwin.apple_sdk.frameworks) Security;
 in
 
 {

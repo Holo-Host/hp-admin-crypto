@@ -14,5 +14,15 @@ Based on their value verifies if provided signature and `HP Admin key` match the
   "body": ${body} // case sensitive, eg. "{\"name\": \"My HoloPort Name\"}"
 }
 ```
-`HP Admin Key` is read from the file located via environmental variable `HPOS_STATE_PATH`. For local tests outside of the HPOS run `HPOS_STATE_PATH="/your/path/to/hpos-state.json" cargo run`.
+`HP Admin Key` is read from the file located via environmental variable `HPOS_STATE_PATH`.
 
+### Development
+`nix-shell` sets the environment for development and tests. Just type `nix-shell` from project's root directory.
+
+### Tests
+`nix-shell` provides env var `HPOS_STATE_PATH` that points to the test file with HP Admin Key. For all end-to-end tests make sure to either run `hp-admin-crypto-server` from `nix-shell` or provide valid env var `HPOS_STATE_PATH`.
+
+Unit tests are run by `cargo test`.
+
+### Debugging
+`hp-admin-crypto-server` provides robust logging. For logging to `stdout` provide env var `RUST_LOG=debug` while running server.

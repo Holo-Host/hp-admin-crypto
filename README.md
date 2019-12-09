@@ -20,7 +20,11 @@ Based on their value verifies if provided signature and `HP Admin key` match the
 `nix-shell` sets the environment for development and tests. Just type `nix-shell` from project's root directory.
 
 ### Tests
-`nix-shell` provides env var `HPOS_STATE_PATH` that points to the test file with HP Admin Key. For all end-to-end tests make sure to either run `hp-admin-crypto-server` from `nix-shell` or provide valid env var `HPOS_STATE_PATH`.
+`nix-shell` provides env var `HPOS_STATE_PATH` that points to the test file with HP Admin Key. For all end-to-end tests make sure to either run `hp-admin-crypto-server` from inside the `nix-shell` or provide valid env var `HPOS_STATE_PATH`. Provided test file `hpos-state.json` has been generated with following credentials:
+```
+	"email": "pj@abba.pl",
+	"password": "abba"
+```
 
 Unit tests are run by `cargo test`.
 

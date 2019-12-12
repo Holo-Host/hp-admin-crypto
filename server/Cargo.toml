@@ -1,6 +1,7 @@
 [package]
 name = "hp-admin-crypto-server"
 version = "0.1.0"
+description = "Servis for checking authorizatoin of API calls from HP Admin UI"
 authors = ["PJ <pj@imagine-nyc.com>"]
 edition = "2018"
 repository = "https://github.com/Holo-Host/hp-admin-crypto"

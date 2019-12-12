@@ -3,6 +3,7 @@ name = "hp-admin-crypto-server"
 version = "0.1.0"
 authors = ["PJ <pj@imagine-nyc.com>"]
 edition = "2018"
+repository = "https://github.com/Holo-Host/hp-admin-crypto"
 
 [dependencies]
 base64 = "0.10.1"

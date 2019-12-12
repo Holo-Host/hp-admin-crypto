@@ -1,0 +1,15 @@
+[package]
+name = "client"
+version = "0.1.0"
+description = "Client side package for signing API calls to HP Admin"
+authors = ["PJ <pj@imagine-nyc.com>"]
+edition = "2018"
+repository = "https://github.com/Holo-Host/hp-admin-crypto"
+
+[dependencies]
+wasm-bindgen = "0.2.51"
+wasm-bindgen-cli = "0.2.51"
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]

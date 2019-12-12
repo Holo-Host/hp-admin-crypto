@@ -15,4 +15,18 @@ in
 
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
   };
+
+  hp-admin-crypto-client = buildRustPackage rustPlatform {
+	  name = "hp-admin-crypto-client";
+    src = gitignoreSource ./client;
+    cargoDir = ".";
+
+    nativeBuildInputs = with buildPackages; [
+      nodejs-12_x
+      pkgconfig
+      (wasm-pack.override { inherit rustPlatform; })
+    ];
+
+    # buildInputs = [ openssl ];
+  };
 }

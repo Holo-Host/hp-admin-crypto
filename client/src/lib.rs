@@ -1,27 +1,37 @@
 use failure::Error;
-// use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::*;
 
 use ed25519_dalek::{Keypair, PublicKey};
 use hpos_state_core::admin_keypair_from;
 
-#[derive(Debug)]
+#[wasm_bindgen]
 pub struct HpAdminKeypair(Keypair);
 
+#[wasm_bindgen]
 impl HpAdminKeypair {
-    pub fn new(hc_public_key_string: String, email: String, password: String) -> Result<Self, Error> {
-        let hc_public_key_bytes = base36::decode(&hc_public_key_string)?;
-        let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes)?;
-        Ok(Self(admin_keypair_from(hc_public_key, &email, &password)?))
+
+    #[wasm_bindgen(constructor)]
+    pub fn new(hc_public_key_string: String, email: String, password: String) -> Result<HpAdminKeypair, JsValue> {
+        // rewrite any Error into JsValue
+        match new_inner(hc_public_key_string, email, password) {
+            Ok(v) => Ok(Self(v)),
+            Err(e) => Err(e.to_string().into())
+        }
     }
 
     // Returns base64 encoded signature of the payload
+    #[wasm_bindgen]
     pub fn sign(&self, payload: &[u8]) -> String {
         let signature = self.0.sign(payload);
         base64::encode_config(&signature.to_bytes()[..], base64::STANDARD_NO_PAD)
     }
 }
 
-// TODO: wasmify, convert to human readible errors for js user, check how do we handle errors in js
+fn new_inner(hc_public_key_string: String, email: String, password: String) -> Result<Keypair, Error> {
+    let hc_public_key_bytes = base36::decode(&hc_public_key_string)?;
+    let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes)?;
+    Ok(admin_keypair_from(hc_public_key, &email, &password)?)
+}
 
 #[cfg(test)]
 mod tests {

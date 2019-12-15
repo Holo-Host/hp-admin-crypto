@@ -7,9 +7,17 @@ edition = "2018"
 repository = "https://github.com/Holo-Host/hp-admin-crypto"
 
 [dependencies]
-wasm-bindgen = "0.2.51"
+base64 = "0.10.1"
+ed25519-dalek = { version = "1.0.0-pre.2", features = ["nightly", "serde"] }
+hpos-state-core = { git = "https://github.com/Holo-Host/hpos-state", branch = "develop" }
+wasm-bindgen = { version = "0.2.51", features = ["serde-serialize"] }
 wasm-bindgen-cli = "0.2.51"
 
+serde = { version = "1.0.89", features = ["derive"] }
+serde_json = "1.0.39"
+failure = "0.1.5"
+
+base36 = { git = "https://github.com/transumption-unstable/base36", rev = "4e6981e13ec5f3748dfe9b8870aa4e8ed749096d"}
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -1,6 +1,5 @@
 use failure::Error;
 use wasm_bindgen::prelude::*;
-
 use ed25519_dalek::{Keypair, PublicKey};
 use hpos_state_core::admin_keypair_from;
 
@@ -10,6 +9,9 @@ pub struct HpAdminKeypair(Keypair);
 #[wasm_bindgen]
 impl HpAdminKeypair {
 
+    /// @description Create an Ed25519 keypair for API signing calls to HPOS
+    /// @example
+    /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
     #[wasm_bindgen(constructor)]
     pub fn new(hc_public_key_string: String, email: String, password: String) -> Result<HpAdminKeypair, JsValue> {
         // rewrite any Error into JsValue
@@ -19,7 +21,11 @@ impl HpAdminKeypair {
         }
     }
 
-    // Returns base64 encoded signature of the payload
+    /// @description Sign payload and return base64 encoded signature
+    /// @example
+    /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
+    /// const payload = "{ key: value }";
+    /// myKeys.sign( payload );
     #[wasm_bindgen]
     pub fn sign(&self, payload: &[u8]) -> String {
         let signature = self.0.sign(payload);

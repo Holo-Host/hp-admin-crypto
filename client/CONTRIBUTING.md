@@ -32,6 +32,11 @@ npm run start
 ```
 This will spin up a webpack hot reload server.
 
+## Generate docs
+```
+./node_modules/.bin/jsdoc pkg/hp_admin_crypto_client.js --configure .jsdoc.json --destination docs
+```
+
 ## Publish
 ```
 wasm-pack publish

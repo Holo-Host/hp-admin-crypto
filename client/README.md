@@ -4,6 +4,8 @@ Front-end class for signing messages with ed-25519 keypair that is generated fro
 
 ## API reference
 
+soon...
+
 ## Usage
 ```javascript
 import {HpAdminKeypair} from "hp-admin-crypto-client";

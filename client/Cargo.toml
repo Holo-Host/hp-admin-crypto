@@ -1,8 +1,9 @@
 [package]
 name = "hp-admin-crypto-client"
-version = "0.1.0"
+version = "0.1.1"
 description = "Client side package for signing API calls to HPOS Admin"
 authors = ["PJ <pj@imagine-nyc.com>"]
+license = "MIT"
 edition = "2018"
 repository = "https://github.com/Holo-Host/hp-admin-crypto"
 

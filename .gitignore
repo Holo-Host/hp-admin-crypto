@@ -1,3 +1,4 @@
 result
 target/
 pkg/
+/client/tests/www/node_modules/

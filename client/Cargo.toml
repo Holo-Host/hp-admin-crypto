@@ -17,5 +17,8 @@ serde_json = "1.0.39"
 wasm-bindgen = { version = "0.2.51", features = ["serde-serialize"] }
 wasm-bindgen-cli = "0.2.51"
 
+[dev-dependencies]
+wasm-bindgen-test = "0.2.50"
+
 [lib]
 crate-type = ["cdylib", "rlib"]

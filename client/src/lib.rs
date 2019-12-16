@@ -74,6 +74,7 @@ fn parse_payload (payload: &JsValue) -> Result<Vec<u8>, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wasm_bindgen_test::*;
 
     const HC_PUBLIC_KEY: &str = "3llrdmlase6xwo9drzs6qpze40hgaucyf7g8xpjze6dz32s957";
     const EMAIL: &str = "pj@abba.pl";
@@ -100,21 +101,31 @@ mod tests {
     }
 
     #[test]
+    fn test_base36_decode() {
+        assert_eq!(base36::decode("fg3h7vpw7een6jwwnzmq").unwrap(), b"Hello, World!");
+    }
+
+    #[test]
+    fn test_base36_encode() {
+        assert_eq!(base36::encode(b"Hello, World!"), "fg3h7vpw7een6jwwnzmq");
+    }
+
+    #[wasm_bindgen_test]
     fn create_correct_signature() {
         let payload = Payload {
             method: "get".to_string(),
             uri: "/someuri".to_string(),
             body_string: "".to_string(),
         };
-        /*
+        
         let payload_js = JsValue::from_serde(&payload).unwrap();
         let my_keypair = HpAdminKeypair::new(HC_PUBLIC_KEY.to_string(), EMAIL.to_string(), PASSWORD.to_string()).unwrap();
-        let signature = my_keypair.sign(&payload_js);
+        let signature = my_keypair.sign(&payload_js).unwrap();
 
-        assert_eq!(signature, EXPECTED_SIGNATURE);*/
+        assert_eq!(signature, EXPECTED_SIGNATURE);
     }
-/*
-    #[test]
+
+    #[wasm_bindgen_test]
     fn create_incorrect_signature() {
         let payload = Payload {
             method: "get".to_string(),
@@ -123,8 +134,8 @@ mod tests {
         };
         let payload_js = JsValue::from_serde(&payload).unwrap();
         let my_keypair = HpAdminKeypair::new(HC_PUBLIC_KEY.to_string(), EMAIL.to_string(), PASSWORD.to_string()).unwrap();
-        let signature = my_keypair.sign(&payload_js);
+        let signature = my_keypair.sign(&payload_js).unwrap();
 
         assert_ne!(signature, WRONG_SIGNATURE);
-    }*/
+    }
 }

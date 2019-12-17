@@ -25,10 +25,10 @@ nix-%:
 
 # Build all targets
 .PHONY: build
-build:		client/pkg/hp_admin_crypto_client_node.js	\
+build:		client/pkg/hp-admin-key-manager_node.js	\
 		target/release/hp_admin_crypto_server
 
-client/pkg/hp_admin_crypto_client_node.js: client/src/lib.rs
+client/pkg/hp-admin-key-manager_node.js: client/src/lib.rs
 	cd client && ./build.sh
 
 target/release/hp_admin_crypto_server: server/src/main.rs

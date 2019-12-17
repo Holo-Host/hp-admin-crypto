@@ -4,7 +4,7 @@ Front-end class for signing messages with ed-25519 keypair that is generated fro
 
 ## API reference
 
-soon...
+On [github pages](https://holo-host.github.io/hp-admin-crypto/client/docs/).
 
 ## Usage
 ```javascript

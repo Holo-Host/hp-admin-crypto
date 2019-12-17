@@ -7,9 +7,12 @@
 #
 
 SHELL		= bash
+
+
 # External targets; Uses a nix-shell environment to obtain Holochain runtimes, run tests, etc.
 .PHONY: all
-all: nix-test
+all: 		nix-test
+
 
 # nix-test, nix-install, ...
 # 
@@ -20,10 +23,35 @@ nix-%:
 	nix-shell --pure --run "make $*"
 
 
-.PHONY: test test-unit
-test:		test-unit
+# Build all targets
+.PHONY: build
+build:		client/pkg/hp_admin_crypto_client_node.js	\
+		target/release/hp_admin_crypto_server
 
-test-unit:
+client/pkg/hp_admin_crypto_client_node.js: client/src/lib.rs
+	cd client && ./build.sh
+
+target/release/hp_admin_crypto_server: server/src/main.rs
+	cargo build --release
+
+
+# Test all targets, building as necessary
+.PHONY: test test-rust test-js
+test:		test-rust test-js
+
+test-rust:
 	cargo test
 
+crypto-server.PID: 
+	$^ & echo $$! > $@
 
+# A (poor) example of starting a server, running some tests, and shutting down the server
+test-js:	target/release/hp-admin-crypto-server
+	@PID=$$( $< > $@.out 2>&1 & echo $$! ); \
+	GOT=$$( curl -v -X POST \
+	  --header "x-hpos-admin-signature: boo==" \
+	  --data '{"method": "get", "request": "/api/v1/config?a=b", "body": "something" }' \
+	    http://127.0.0.1:2884 2>&1 \
+	  | sed -ne "s/< HTTP\/1.1 \(.*\)/\1/p" ); \
+	[[ "$$GOT" == "200 OK" ]] && echo OK || echo "ERROR: '200 OK' Expected; got '$$GOT'"; \
+	kill $$PID

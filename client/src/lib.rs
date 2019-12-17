@@ -1,6 +1,6 @@
 use ed25519_dalek::{Keypair, PublicKey};
 use failure::{err_msg, Error};
-use hpos_state_core::admin_keypair_from;
+use hpos_config_core::admin_keypair_from;
 use serde::*;
 use wasm_bindgen::prelude::*;
 
@@ -98,10 +98,13 @@ mod tests {
     const WRONG_SIGNATURE: &str =
         "dQlFxqMQh0idWk6anOerf7b9/XssKkvSrVIv9gMuf7M31ivli6BM2ktCsv9FHB/2FfdwO4LS8muOkFjSt7uAAg";
     const EXPECTED_KEYPAIR_BYTES: [u8; 64] = [
-        86, 232, 163, 246, 177, 146, 183, 158, 16, 202, 71, 66, 191, 42, 83, 106, 46, 71, 128, 204,
-        29, 161, 253, 99, 103, 119, 51, 166, 207, 227, 152, 126, 254, 75, 67, 43, 110, 118, 167,
-        139, 237, 181, 51, 247, 79, 248, 118, 157, 81, 248, 54, 69, 30, 222, 173, 94, 107, 236,
-        178, 142, 219, 115, 127, 12,
+        82, 253, 185, 87, 98, 217, 46, 233, 252, 159,
+        103, 182, 121, 229, 22, 25, 34, 216, 81, 60,
+        31, 204, 200, 63, 63, 233, 220, 47, 221, 74,
+        86, 129, 103, 252, 79, 147, 189, 195, 172, 28,
+        182, 243, 169, 66, 16, 196, 175, 183, 244, 207,
+        211, 230, 5, 171, 105, 190, 23, 195, 137, 80,
+        99, 254, 9, 250,
     ];
 
     impl HpAdminKeypair {

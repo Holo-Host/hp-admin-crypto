@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use std::{env, fs};
 
 use ed25519_dalek::{PublicKey, Signature};
-use hpos_state_core::state::State;
+use hpos_config_core::config::Config;
 
 use log::{debug, error, info};
 
@@ -150,7 +150,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
 
     info!("Reading HP Admin Public Key from file.");
 
-    let hpos_state_path = match env::var("HPOS_STATE_PATH") {
+    let hpos_config_path = match env::var("HPOS_STATE_PATH") {
         Ok(s) => s,
         Err(e) => {
             error!("HPOS_STATE_PATH: {}", e);
@@ -159,16 +159,16 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     };
 
     // Read from path
-    let contents = match fs::read(&hpos_state_path) {
+    let contents = match fs::read(&hpos_config_path) {
         Ok(s) => s,
         Err(e) => {
-            error!("Error reading file {}: {}", &hpos_state_path, e);
+            error!("Error reading file {}: {}", &hpos_config_path, e);
             return Err("Can't read HP Admin PublicKey from file.")?;
         }
     };
 
     // Parse content
-    let hpos_state: State = match serde_json::from_slice(&contents) {
+    let hpos_config: Config = match serde_json::from_slice(&contents) {
         Ok(s) => s,
         Err(e) => {
             error!("Error reading HP Admin Public Key from file: {}", e);
@@ -177,7 +177,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     };
 
     // Update cached value in HP_PUBLIC_KEY
-    let pub_key = hpos_state.admin_public_key();
+    let pub_key = hpos_config.admin_public_key();
     *HP_PUBLIC_KEY.lock()? = Some(pub_key);
 
     Ok(pub_key)

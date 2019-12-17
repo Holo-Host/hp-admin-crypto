@@ -12,7 +12,7 @@ base36 = { git = "https://github.com/transumption-unstable/base36", rev = "4e698
 base64 = "0.10.1"
 ed25519-dalek = { version = "1.0.0-pre.2", features = ["nightly", "serde"] }
 failure = "0.1.5"
-hpos-state-core = { git = "https://github.com/Holo-Host/hpos-state", branch = "develop" }
+hpos-config-core = { git = "https://github.com/Holo-Host/hpos-config", branch = "develop" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.39"
 wasm-bindgen = { version = "0.2.51", features = ["serde-serialize"] }

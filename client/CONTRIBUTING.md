@@ -35,7 +35,7 @@ This will spin up a webpack hot reload server.
 ## Generate docs
 Publish docs only on `gh-pages` branch with:
 ```
-npx jsdoc pkg/hp_admin_crypto_client.js --configure .jsdoc.json --destination docs
+npx jsdoc pkg/hp_admin_key_manager.js --configure .jsdoc.json --destination docs
 ```
 
 ## Publish

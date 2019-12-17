@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: hp_admin_key_manager.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: hp_admin_key_manager.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import * as wasm from './hp_admin_key_manager_bg.wasm';
+
+let WASM_VECTOR_LEN = 0;
+
+let cachedTextEncoder = new TextEncoder('utf-8');
+
+const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
+    ? function (arg, view) {
+    return cachedTextEncoder.encodeInto(arg, view);
+}
+    : function (arg, view) {
+    const buf = cachedTextEncoder.encode(arg);
+    view.set(buf);
+    return {
+        read: arg.length,
+        written: buf.length
+    };
+});
+
+let cachegetUint8Memory = null;
+function getUint8Memory() {
+    if (cachegetUint8Memory === null || cachegetUint8Memory.buffer !== wasm.memory.buffer) {
+        cachegetUint8Memory = new Uint8Array(wasm.memory.buffer);
+    }
+    return cachegetUint8Memory;
+}
+
+function passStringToWasm(arg) {
+
+    let len = arg.length;
+    let ptr = wasm.__wbindgen_malloc(len);
+
+    const mem = getUint8Memory();
+
+    let offset = 0;
+
+    for (; offset &lt; len; offset++) {
+        const code = arg.charCodeAt(offset);
+        if (code > 0x7F) break;
+        mem[ptr + offset] = code;
+    }
+
+    if (offset !== len) {
+        if (offset !== 0) {
+            arg = arg.slice(offset);
+        }
+        ptr = wasm.__wbindgen_realloc(ptr, len, len = offset + arg.length * 3);
+        const view = getUint8Memory().subarray(ptr + offset, ptr + len);
+        const ret = encodeString(arg, view);
+
+        offset += ret.written;
+    }
+
+    WASM_VECTOR_LEN = offset;
+    return ptr;
+}
+
+const heap = new Array(32);
+
+heap.fill(undefined);
+
+heap.push(undefined, null, true, false);
+
+let stack_pointer = 32;
+
+function addBorrowedObject(obj) {
+    if (stack_pointer == 1) throw new Error('out of js stack');
+    heap[--stack_pointer] = obj;
+    return stack_pointer;
+}
+
+let cachegetInt32Memory = null;
+function getInt32Memory() {
+    if (cachegetInt32Memory === null || cachegetInt32Memory.buffer !== wasm.memory.buffer) {
+        cachegetInt32Memory = new Int32Array(wasm.memory.buffer);
+    }
+    return cachegetInt32Memory;
+}
+
+let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
+
+cachedTextDecoder.decode();
+
+function getStringFromWasm(ptr, len) {
+    return cachedTextDecoder.decode(getUint8Memory().subarray(ptr, ptr + len));
+}
+
+function getObject(idx) { return heap[idx]; }
+
+let heap_next = heap.length;
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
+function dropObject(idx) {
+    if (idx &lt; 36) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
+
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
+}
+/**
+*/
+export class HpAdminKeypair {
+
+    static __wrap(ptr) {
+        const obj = Object.create(HpAdminKeypair.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+
+        wasm.__wbg_hpadminkeypair_free(ptr);
+    }
+    /**
+    * @description Create an Ed25519 keypair for API signing calls to HPOS
+    * @example
+    * myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
+    * @param {string} hc_public_key_string
+    * @param {string} email
+    * @param {string} password
+    * @returns {HpAdminKeypair}
+    */
+    constructor(hc_public_key_string, email, password) {
+        const ret = wasm.hpadminkeypair_new(passStringToWasm(hc_public_key_string), WASM_VECTOR_LEN, passStringToWasm(email), WASM_VECTOR_LEN, passStringToWasm(password), WASM_VECTOR_LEN);
+        return HpAdminKeypair.__wrap(ret);
+    }
+    /**
+    * @description Sign payload and return base64 encoded signature.
+    * Requires properly formatted payload:
+    * const payload = {
+        *     method: String,
+        *     uri: String,
+        *     body_string: String
+        * }
+        * @example
+        * myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
+        * const payload = {
+            *     method: \"get\",
+            *     uri: \"/someuri\",
+            *     body_string: \"\
+            * }
+            * myKeys.sign( payload );
+            * @param {any} payload
+            * @returns {string}
+            */
+            sign(payload) {
+                const retptr = 8;
+                try {
+                    const ret = wasm.hpadminkeypair_sign(retptr, this.ptr, addBorrowedObject(payload));
+                    const memi32 = getInt32Memory();
+                    const v0 = getStringFromWasm(memi32[retptr / 4 + 0], memi32[retptr / 4 + 1]).slice();
+                    wasm.__wbindgen_free(memi32[retptr / 4 + 0], memi32[retptr / 4 + 1] * 1);
+                    return v0;
+                } finally {
+                    heap[stack_pointer++] = undefined;
+                }
+            }
+        }
+
+        export const __wbindgen_json_serialize = function(arg0, arg1) {
+            const obj = getObject(arg1);
+            const ret = JSON.stringify(obj === undefined ? null : obj);
+            const ret0 = passStringToWasm(ret);
+            const ret1 = WASM_VECTOR_LEN;
+            getInt32Memory()[arg0 / 4 + 0] = ret0;
+            getInt32Memory()[arg0 / 4 + 1] = ret1;
+        };
+
+        export const __wbindgen_string_new = function(arg0, arg1) {
+            const ret = getStringFromWasm(arg0, arg1);
+            return addHeapObject(ret);
+        };
+
+        export const __wbindgen_throw = function(arg0, arg1) {
+            throw new Error(getStringFromWasm(arg0, arg1));
+        };
+
+        export const __wbindgen_rethrow = function(arg0) {
+            throw takeObject(arg0);
+        };
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="HpAdminKeypair.html">HpAdminKeypair</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.3</a> on Tue Dec 17 2019 16:10:49 GMT+0100 (Central European Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

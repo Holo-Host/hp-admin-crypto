@@ -16,8 +16,8 @@ in
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
   };
 
-  hp-admin-crypto-client = buildRustPackage rustPlatform {
-	  name = "hp-admin-crypto-client";
+  hp-admin-key-manager = buildRustPackage rustPlatform {
+	  name = "hp-admin-key-manager";
     src = gitignoreSource ./client;
     cargoDir = ".";
 

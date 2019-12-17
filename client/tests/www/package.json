@@ -1,18 +1,15 @@
 {
-  "name": "create-wasm-app",
+  "name": "hp-admin-key-manager-playground",
   "version": "0.1.0",
   "description": "create an app to consume rust-generated wasm packages",
   "main": "index.js",
-  "bin": {
-    "create-wasm-app": ".bin/create-wasm-app.js"
-  },
   "scripts": {
     "build": "webpack --config webpack.config.js",
     "start": "webpack-dev-server"
   },
   "author": "PJ Klimek <pj@imagine-nyc.com>",
   "dependencies": {
-    "hp-admin-crypto-client": "^0.1.0"
+    "@holo-host/hp-admin-key-manager": "^0.1.0"
   },
   "devDependencies": {
     "webpack": "^4.29.3",

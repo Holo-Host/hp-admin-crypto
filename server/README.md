@@ -1,4 +1,4 @@
-# HoloPort Admin Crypto Client
+# HoloPort Admin Crypto Server
 
 Server is listening on loopback address `http://127.0.0.1:2884/` for incoming http requests. It is reading the value of the following headers:
 - x-hpos-admin-signature

@@ -6,7 +6,7 @@ Client is built in `Rust 1.38.0-nightly` and compiled to WASM using `wasm-pack` 
 `nix-shell` sets the environment for development and tests. Type `nix-shell` from project's root directory to set up dev environment, then cd to `client` folder.
 
 ## Build
-Build from source with `wasm-pack build`.
+Build from source with `./build.sh`.
 
 ## Tests
 Tests are divided into 2 groups - Rust unit tests and Wasm-pack unit tests.
@@ -33,8 +33,9 @@ npm run start
 This will spin up a webpack hot reload server.
 
 ## Generate docs
+Publish docs only on `gh-pages` branch with:
 ```
-./node_modules/.bin/jsdoc pkg/hp_admin_crypto_client.js --configure .jsdoc.json --destination docs
+npx jsdoc pkg/hp_admin_crypto_client.js --configure .jsdoc.json --destination docs
 ```
 
 ## Publish

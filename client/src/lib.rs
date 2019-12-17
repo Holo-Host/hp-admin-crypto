@@ -1,5 +1,7 @@
+pub mod util;
+
+use crate::util::*;
 use ed25519_dalek::{Keypair, PublicKey};
-use failure::{err_msg, Error};
 use hpos_config_core::admin_keypair_from;
 use serde::*;
 use wasm_bindgen::prelude::*;
@@ -24,12 +26,10 @@ impl HpAdminKeypair {
         hc_public_key_string: String,
         email: String,
         password: String,
-    ) -> Result<HpAdminKeypair, JsValue> {
-        // rewrite any Error into JsValue
-        match new_inner(hc_public_key_string, email, password) {
-            Ok(v) => Ok(Self(v)),
-            Err(e) => Err(e.to_string().into()),
-        }
+    ) -> Fallible<HpAdminKeypair> {
+        console_error_panic_hook::set_once();
+        let keypair = new_inner(hc_public_key_string, email, password)?;
+        Ok(Self(keypair))
     }
 
     /// @description Sign payload and return base64 encoded signature.
@@ -48,17 +48,9 @@ impl HpAdminKeypair {
     /// }
     /// myKeys.sign( payload );
     #[wasm_bindgen]
-    pub fn sign(&self, payload: &JsValue) -> Result<String, JsValue> {
+    pub fn sign(&self, payload: &JsValue) -> Fallible<String> {
         // return meaningful error message via JsValue
-        let payload_vec = match parse_payload(payload) {
-            Ok(v) => v,
-            Err(_) => {
-                return Err("Malformed signing payload, check docs for details."
-                    .to_string()
-                    .into())
-            }
-        };
-
+        let payload_vec = parse_payload(payload)?;
         let signature = self.0.sign(&payload_vec);
         Ok(base64::encode_config(
             &signature.to_bytes()[..],
@@ -71,18 +63,21 @@ fn new_inner(
     hc_public_key_string: String,
     email: String,
     password: String,
-) -> Result<Keypair, Error> {
-    let hc_public_key_bytes = base36::decode(&hc_public_key_string)?;
-    let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes)?;
-    Ok(admin_keypair_from(hc_public_key, &email, &password)?)
+) -> Fallible<Keypair> {
+    let hc_public_key_bytes = base36::decode(&hc_public_key_string)
+        .map_err(|e| JsValue::from(e.to_string()))?;
+    let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes)
+        .map_err(into_js_error)?;
+    let keypair = admin_keypair_from(hc_public_key, &email, &password)
+       .map_err(|e| JsValue::from(e.to_string()))?;
+    Ok(keypair)
 }
 
-fn parse_payload(payload: &JsValue) -> Result<Vec<u8>, Error> {
-    let payload_struct: Payload = payload.into_serde()?;
-    match serde_json::to_vec(&payload_struct) {
-        Ok(v) => Ok(v),
-        Err(e) => Err(err_msg(e.to_string())),
-    }
+fn parse_payload(payload: &JsValue) -> Fallible<Vec<u8>> {
+    let payload_struct: Payload = payload.into_serde()
+        .map_err(into_js_error)?;
+    Ok(serde_json::to_vec(&payload_struct)
+       .map_err(into_js_error)?)
 }
 
 #[cfg(test)]

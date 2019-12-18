@@ -20,7 +20,7 @@ cargo test
 ### Wasm-pack unit tests
 Test interaction with created Wasm package in selected environments:
 ```
-wasm-pack --firefox
+wasm-pack test --firefox
 ```
 Must specify at least one of `--node`, `--chrome`, `--firefox`, or `--safari`.
 

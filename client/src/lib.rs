@@ -13,7 +13,7 @@ pub struct HpAdminKeypair(Keypair);
 struct Payload {
     method: String,
     uri: String,
-    body_string: String,
+    body: String,
 }
 
 #[wasm_bindgen]
@@ -27,7 +27,7 @@ impl HpAdminKeypair {
         email: String,
         password: String,
     ) -> Fallible<HpAdminKeypair> {
-        console_error_panic_hook::set_once();
+        // console_error_panic_hook::set_once();
         let keypair = new_inner(hc_public_key_string, email, password)?;
         Ok(Self(keypair))
     }
@@ -37,14 +37,14 @@ impl HpAdminKeypair {
     /// const payload = {
     ///     method: String,
     ///     uri: String,
-    ///     body_string: String
+    ///     body: String
     /// }
     /// @example
     /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
     /// const payload = {
     ///     method: "get",
     ///     uri: "/someuri",
-    ///     body_string: ""
+    ///     body: ""
     /// }
     /// myKeys.sign( payload );
     #[wasm_bindgen]
@@ -139,7 +139,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             uri: "/someuri".to_string(),
-            body_string: "".to_string(),
+            body: "".to_string(),
         };
 
         let payload_js = JsValue::from_serde(&payload).unwrap();
@@ -159,7 +159,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             uri: "/someuri".to_string(),
-            body_string: "".to_string(),
+            body: "".to_string(),
         };
         let payload_js = JsValue::from_serde(&payload).unwrap();
         let my_keypair = HpAdminKeypair::new(

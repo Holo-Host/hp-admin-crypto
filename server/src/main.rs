@@ -29,7 +29,7 @@ lazy_static! {
 struct Payload {
     method: String,
     uri: String,
-    body_string: String,
+    body: String,
 }
 
 // Create response based on the request parameters
@@ -62,7 +62,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                     req_uri_string
                 );
 
-                let body_string = match String::from_utf8(body.to_vec()) {
+                let body = match String::from_utf8(body.to_vec()) {
                     Ok(s) => s,
                     Err(e) => {
                         debug!("Error parsing request body: {}", e);
@@ -73,7 +73,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 let payload = Payload {
                     method: parts.method.to_string(),
                     uri: req_uri_string,
-                    body_string: body_string,
+                    body: body,
                 };
 
                 let public_key = match read_hp_pubkey() {
@@ -220,7 +220,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             uri: "/abba".to_string(),
-            body_string: "\"something\": \"interesting\"".to_string(),
+            body: "\"something\": \"interesting\"".to_string(),
         };
 
         let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
@@ -247,7 +247,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             uri: "/abba".to_string(),
-            body_string: "\"something\": \"interesting\"".to_string(),
+            body: "\"something\": \"interesting\"".to_string(),
         };
 
         let mut headers = HeaderMap::new();

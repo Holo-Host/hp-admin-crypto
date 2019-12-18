@@ -8,7 +8,7 @@ let kp = new HpAdminKeypair(HC_PUBLIC_KEY, EMAIL, PASSWORD);
 
 const payload = {
     method: "get",
-    uri: 1,
+    request: "/someuri",
     body: ""
 }
 

@@ -12,7 +12,7 @@ pub struct HpAdminKeypair(Keypair);
 #[derive(Serialize, Deserialize, Debug)]
 struct Payload {
     method: String,
-    uri: String,
+    request: String,
     body: String,
 }
 
@@ -36,14 +36,14 @@ impl HpAdminKeypair {
     /// Requires properly formatted payload:
     /// const payload = {
     ///     method: String,
-    ///     uri: String,
+    ///     request: String,
     ///     body: String
     /// }
     /// @example
     /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
     /// const payload = {
     ///     method: "get",
-    ///     uri: "/someuri",
+    ///     request: "/someuri",
     ///     body: ""
     /// }
     /// myKeys.sign( payload );
@@ -89,7 +89,7 @@ mod tests {
     const EMAIL: &str = "pj@abba.pl";
     const PASSWORD: &str = "abba";
     const EXPECTED_SIGNATURE: &str =
-        "H/7BGNKb7ICPR2D9GGv2g2SkMX2tuCpBgCPeguzZpyhGrVSIOOgpRz+MjtmZ+g0wG9lstrU6fY+nPPlNdF/UDg";
+        "b1QKomb7z1/W6gb0bNwc85OhdZED71NFenkCg5xBFFwSYEFJnqo/jcNn3RZbPPJwTBSN5bTEt0jCI1wtvDTGCQ";
     const WRONG_SIGNATURE: &str =
         "dQlFxqMQh0idWk6anOerf7b9/XssKkvSrVIv9gMuf7M31ivli6BM2ktCsv9FHB/2FfdwO4LS8muOkFjSt7uAAg";
     const EXPECTED_KEYPAIR_BYTES: [u8; 64] = [
@@ -138,7 +138,7 @@ mod tests {
     fn create_correct_signature() {
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/someuri".to_string(),
+            request: "/someuri".to_string(),
             body: "".to_string(),
         };
 
@@ -158,7 +158,7 @@ mod tests {
     fn create_incorrect_signature() {
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/someuri".to_string(),
+            request: "/someuri".to_string(),
             body: "".to_string(),
         };
         let payload_js = JsValue::from_serde(&payload).unwrap();
@@ -178,11 +178,11 @@ mod tests {
         #[derive(Serialize, Deserialize, Debug)]
         struct PayloadErr {
             method: String,
-            uri: String
+            request: String
         }
         let payload_err = PayloadErr {
             method: "get".to_string(),
-            uri: "/someuri".to_string()
+            request: "/someuri".to_string()
         };
 
         let payload_err_js = JsValue::from_serde(&payload_err).unwrap();

@@ -1,6 +1,6 @@
 [package]
-name = "hp-admin-key-manager"
-version = "0.1.1"
+name = "hp-admin-keypair"
+version = "0.1.2"
 description = "Client side package for signing API calls to HPOS Admin"
 authors = ["PJ <pj@imagine-nyc.com>"]
 license = "MIT"

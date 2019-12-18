@@ -566,8 +566,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "hp-admin-key-manager"
-version = "0.1.1"
+name = "hp-admin-keypair"
+version = "0.1.2"
 dependencies = [
  "base36 0.0.0 (git+https://github.com/transumption-unstable/base36?rev=4e6981e13ec5f3748dfe9b8870aa4e8ed749096d)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",

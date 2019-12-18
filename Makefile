@@ -42,9 +42,6 @@ test:		test-rust test-js
 test-rust:
 	cargo test
 
-crypto-server.PID: 
-	$^ & echo $$! > $@
-
 # A (poor) example of starting a server, running some tests, and shutting down the server
 test-js:	target/release/hp-admin-crypto-server
 	@PID=$$( $< > $@.out 2>&1 & echo $$! ); \

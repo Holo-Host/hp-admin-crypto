@@ -59,25 +59,18 @@ impl HpAdminKeypair {
     }
 }
 
-fn new_inner(
-    hc_public_key_string: String,
-    email: String,
-    password: String,
-) -> Fallible<Keypair> {
-    let hc_public_key_bytes = base36::decode(&hc_public_key_string)
-        .map_err(|e| JsValue::from(e.to_string()))?;
-    let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes)
-        .map_err(into_js_error)?;
+fn new_inner(hc_public_key_string: String, email: String, password: String) -> Fallible<Keypair> {
+    let hc_public_key_bytes =
+        base36::decode(&hc_public_key_string).map_err(|e| JsValue::from(e.to_string()))?;
+    let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).map_err(into_js_error)?;
     let keypair = admin_keypair_from(hc_public_key, &email, &password)
         .map_err(|e| JsValue::from(e.to_string()))?;
     Ok(keypair)
 }
 
 fn parse_payload(payload: &JsValue) -> Fallible<Vec<u8>> {
-    let payload_struct: Payload = payload.into_serde()
-        .map_err(into_js_error)?;
-    Ok(serde_json::to_vec(&payload_struct)
-        .map_err(into_js_error)?)
+    let payload_struct: Payload = payload.into_serde().map_err(into_js_error)?;
+    Ok(serde_json::to_vec(&payload_struct).map_err(into_js_error)?)
 }
 
 #[cfg(test)]
@@ -93,13 +86,10 @@ mod tests {
     const WRONG_SIGNATURE: &str =
         "dQlFxqMQh0idWk6anOerf7b9/XssKkvSrVIv9gMuf7M31ivli6BM2ktCsv9FHB/2FfdwO4LS8muOkFjSt7uAAg";
     const EXPECTED_KEYPAIR_BYTES: [u8; 64] = [
-        82, 253, 185, 87, 98, 217, 46, 233, 252, 159,
-        103, 182, 121, 229, 22, 25, 34, 216, 81, 60,
-        31, 204, 200, 63, 63, 233, 220, 47, 221, 74,
-        86, 129, 103, 252, 79, 147, 189, 195, 172, 28,
-        182, 243, 169, 66, 16, 196, 175, 183, 244, 207,
-        211, 230, 5, 171, 105, 190, 23, 195, 137, 80,
-        99, 254, 9, 250,
+        82, 253, 185, 87, 98, 217, 46, 233, 252, 159, 103, 182, 121, 229, 22, 25, 34, 216, 81, 60,
+        31, 204, 200, 63, 63, 233, 220, 47, 221, 74, 86, 129, 103, 252, 79, 147, 189, 195, 172, 28,
+        182, 243, 169, 66, 16, 196, 175, 183, 244, 207, 211, 230, 5, 171, 105, 190, 23, 195, 137,
+        80, 99, 254, 9, 250,
     ];
 
     impl HpAdminKeypair {
@@ -178,11 +168,11 @@ mod tests {
         #[derive(Serialize, Deserialize, Debug)]
         struct PayloadErr {
             method: String,
-            request: String
+            request: String,
         }
         let payload_err = PayloadErr {
             method: "get".to_string(),
-            request: "/someuri".to_string()
+            request: "/someuri".to_string(),
         };
 
         let payload_err_js = JsValue::from_serde(&payload_err).unwrap();

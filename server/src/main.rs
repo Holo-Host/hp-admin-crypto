@@ -213,10 +213,9 @@ mod tests {
         let expected_signature: &str =
             "b1QKomb7z1/W6gb0bNwc85OhdZED71NFenkCg5xBFFwSYEFJnqo/jcNn3RZbPPJwTBSN5bTEt0jCI1wtvDTGCQ";
         let secret: [u8; 32] = [
-            82, 253, 185, 87, 98, 217, 46, 233, 252, 159,
-            103, 182, 121, 229, 22, 25, 34, 216, 81, 60,
-            31, 204, 200, 63, 63, 233, 220, 47, 221, 74,
-            86, 129];
+            82, 253, 185, 87, 98, 217, 46, 233, 252, 159, 103, 182, 121, 229, 22, 25, 34, 216, 81,
+            60, 31, 204, 200, 63, 63, 233, 220, 47, 221, 74, 86, 129,
+        ];
         let secret_key = ed25519_dalek::SecretKey::from_bytes(&secret).unwrap();
         let public_key = ed25519_dalek::PublicKey::from(&secret_key);
         let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from(&secret_key);

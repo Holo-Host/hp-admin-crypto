@@ -28,7 +28,7 @@ lazy_static! {
 #[derive(Serialize, Deserialize, Debug)]
 struct Payload {
     method: String,
-    uri: String,
+    request: String,
     body: String,
 }
 
@@ -72,7 +72,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
 
                 let payload = Payload {
                     method: parts.method.to_string(),
-                    uri: req_uri_string,
+                    request: req_uri_string,
                     body: body,
                 };
 
@@ -219,8 +219,8 @@ mod tests {
         // Now lets sign some payload
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/abba".to_string(),
-            body: "\"something\": \"interesting\"".to_string(),
+            request: "/someuri".to_string(),
+            body: "".to_string(),
         };
 
         let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
@@ -246,8 +246,8 @@ mod tests {
 
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/abba".to_string(),
-            body: "\"something\": \"interesting\"".to_string(),
+            request: "/someuri".to_string(),
+            body: "".to_string(),
         };
 
         let mut headers = HeaderMap::new();

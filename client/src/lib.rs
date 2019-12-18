@@ -27,7 +27,7 @@ impl HpAdminKeypair {
         email: String,
         password: String,
     ) -> Fallible<HpAdminKeypair> {
-        // console_error_panic_hook::set_once();
+        console_error_panic_hook::set_once();
         let keypair = new_inner(hc_public_key_string, email, password)?;
         Ok(Self(keypair))
     }
@@ -69,7 +69,7 @@ fn new_inner(
     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes)
         .map_err(into_js_error)?;
     let keypair = admin_keypair_from(hc_public_key, &email, &password)
-       .map_err(|e| JsValue::from(e.to_string()))?;
+        .map_err(|e| JsValue::from(e.to_string()))?;
     Ok(keypair)
 }
 
@@ -77,7 +77,7 @@ fn parse_payload(payload: &JsValue) -> Fallible<Vec<u8>> {
     let payload_struct: Payload = payload.into_serde()
         .map_err(into_js_error)?;
     Ok(serde_json::to_vec(&payload_struct)
-       .map_err(into_js_error)?)
+        .map_err(into_js_error)?)
 }
 
 #[cfg(test)]
@@ -89,7 +89,7 @@ mod tests {
     const EMAIL: &str = "pj@abba.pl";
     const PASSWORD: &str = "abba";
     const EXPECTED_SIGNATURE: &str =
-        "viqqtbfbhTtAarkJjzOgO4cu4MFgGnshYHMjV3nITem01js9lTq0bG2Hwn9rXJi6xYVqOnq2NcosEMcRZ1CAAA";
+        "H/7BGNKb7ICPR2D9GGv2g2SkMX2tuCpBgCPeguzZpyhGrVSIOOgpRz+MjtmZ+g0wG9lstrU6fY+nPPlNdF/UDg";
     const WRONG_SIGNATURE: &str =
         "dQlFxqMQh0idWk6anOerf7b9/XssKkvSrVIv9gMuf7M31ivli6BM2ktCsv9FHB/2FfdwO4LS8muOkFjSt7uAAg";
     const EXPECTED_KEYPAIR_BYTES: [u8; 64] = [
@@ -171,5 +171,29 @@ mod tests {
         let signature = my_keypair.sign(&payload_js).unwrap();
 
         assert_ne!(signature, WRONG_SIGNATURE);
+    }
+
+    #[wasm_bindgen_test]
+    fn pass_incorrect_payload() {
+        #[derive(Serialize, Deserialize, Debug)]
+        struct PayloadErr {
+            method: String,
+            uri: String
+        }
+        let payload_err = PayloadErr {
+            method: "get".to_string(),
+            uri: "/someuri".to_string()
+        };
+
+        let payload_err_js = JsValue::from_serde(&payload_err).unwrap();
+        let my_keypair = HpAdminKeypair::new(
+            HC_PUBLIC_KEY.to_string(),
+            EMAIL.to_string(),
+            PASSWORD.to_string(),
+        )
+        .unwrap();
+        let error = my_keypair.sign(&payload_err_js);
+
+        assert!(error.is_err());
     }
 }

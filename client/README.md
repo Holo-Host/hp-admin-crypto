@@ -20,7 +20,7 @@ let kp = new HpAdminKeypair(HC_PUBLIC_KEY, EMAIL, PASSWORD);
 const payload = {
     method: "get",
     uri: "/someuri",
-    body_string: ""
+    body: ""
 }
 
 console.log(kp.sign(payload));

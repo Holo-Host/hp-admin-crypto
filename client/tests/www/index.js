@@ -1,4 +1,4 @@
-import { HpAdminKeypair } from "@holo-host/hp_admin_keypair";
+import { HpAdminKeypair } from "@holo-host/hp-admin-keypair";
 
 const HC_PUBLIC_KEY = "3llrdmlase6xwo9drzs6qpze40hgaucyf7g8xpjze6dz32s957";
 const EMAIL = "pj@abba.pl";

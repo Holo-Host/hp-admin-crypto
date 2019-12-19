@@ -1,15 +1,17 @@
 [package]
 name = "hp-admin-crypto-server"
 version = "0.1.0"
+description = "Service for checking authorizatoin of API calls from HP Admin UI"
 authors = ["PJ <pj@imagine-nyc.com>"]
 edition = "2018"
+repository = "https://github.com/Holo-Host/hp-admin-crypto"
 
 [dependencies]
 base64 = "0.10.1"
 ed25519-dalek = { version = "1.0.0-pre.2", features = ["nightly", "serde"] }
 env_logger = "0.6.2"
 futures = "0.1.25"
-hpos-state-core = { git = "https://github.com/Holo-Host/hpos-state", branch = "develop" }
+hpos-config-core = { git = "https://github.com/Holo-Host/hpos-config", branch = "develop" }
 hyper = "0.12"
 lazy_static = "1.2"
 log = "0.4.8"

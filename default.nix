@@ -15,4 +15,18 @@ in
 
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
   };
+
+  hp-admin-keypair = buildRustPackage rustPlatform {
+	  name = "hp-admin-keypair";
+    src = gitignoreSource ./client;
+    cargoDir = ".";
+
+    nativeBuildInputs = with buildPackages; [
+      nodejs-12_x
+      pkgconfig
+      (wasm-pack.override { inherit rustPlatform; })
+    ];
+
+    # buildInputs = [ openssl ];
+  };
 }

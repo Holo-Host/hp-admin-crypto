@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use std::{env, fs};
 
 use ed25519_dalek::{PublicKey, Signature};
-use hpos_state_core::state::State;
+use hpos_config_core::config::Config;
 
 use log::{debug, error, info};
 
@@ -28,8 +28,8 @@ lazy_static! {
 #[derive(Serialize, Deserialize, Debug)]
 struct Payload {
     method: String,
-    uri: String,
-    body_string: String,
+    request: String,
+    body: String,
 }
 
 // Create response based on the request parameters
@@ -62,7 +62,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                     req_uri_string
                 );
 
-                let body_string = match String::from_utf8(body.to_vec()) {
+                let body = match String::from_utf8(body.to_vec()) {
                     Ok(s) => s,
                     Err(e) => {
                         debug!("Error parsing request body: {}", e);
@@ -72,8 +72,8 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
 
                 let payload = Payload {
                     method: parts.method.to_string(),
-                    uri: req_uri_string,
-                    body_string: body_string,
+                    request: req_uri_string,
+                    body: body,
                 };
 
                 let public_key = match read_hp_pubkey() {
@@ -150,7 +150,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
 
     info!("Reading HP Admin Public Key from file.");
 
-    let hpos_state_path = match env::var("HPOS_STATE_PATH") {
+    let hpos_config_path = match env::var("HPOS_STATE_PATH") {
         Ok(s) => s,
         Err(e) => {
             error!("HPOS_STATE_PATH: {}", e);
@@ -159,16 +159,16 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     };
 
     // Read from path
-    let contents = match fs::read(&hpos_state_path) {
+    let contents = match fs::read(&hpos_config_path) {
         Ok(s) => s,
         Err(e) => {
-            error!("Error reading file {}: {}", &hpos_state_path, e);
+            error!("Error reading file {}: {}", &hpos_config_path, e);
             return Err("Can't read HP Admin PublicKey from file.")?;
         }
     };
 
     // Parse content
-    let hpos_state: State = match serde_json::from_slice(&contents) {
+    let hpos_config: Config = match serde_json::from_slice(&contents) {
         Ok(s) => s,
         Err(e) => {
             error!("Error reading HP Admin Public Key from file: {}", e);
@@ -177,7 +177,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     };
 
     // Update cached value in HP_PUBLIC_KEY
-    let pub_key = hpos_state.admin_public_key();
+    let pub_key = hpos_config.admin_public_key();
     *HP_PUBLIC_KEY.lock()? = Some(pub_key);
 
     Ok(pub_key)
@@ -209,6 +209,36 @@ mod tests {
     use std::convert::From;
 
     #[test]
+    fn verify_signature_match_client() {
+        let expected_signature: &str =
+            "b1QKomb7z1/W6gb0bNwc85OhdZED71NFenkCg5xBFFwSYEFJnqo/jcNn3RZbPPJwTBSN5bTEt0jCI1wtvDTGCQ";
+        let secret: [u8; 32] = [
+            82, 253, 185, 87, 98, 217, 46, 233, 252, 159, 103, 182, 121, 229, 22, 25, 34, 216, 81,
+            60, 31, 204, 200, 63, 63, 233, 220, 47, 221, 74, 86, 129,
+        ];
+        let secret_key = ed25519_dalek::SecretKey::from_bytes(&secret).unwrap();
+        let public_key = ed25519_dalek::PublicKey::from(&secret_key);
+        let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from(&secret_key);
+
+        // Now lets sign some payload
+        let payload = Payload {
+            method: "get".to_string(),
+            request: "/someuri".to_string(),
+            body: "".to_string(),
+        };
+
+        let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
+        let mut signature_base64 = String::new();
+        base64::encode_config_buf(
+            signature.to_bytes().as_ref(),
+            base64::STANDARD_NO_PAD,
+            &mut signature_base64,
+        );
+
+        assert_eq!(signature_base64, expected_signature);
+    }
+
+    #[test]
     fn verify_request_smoke() {
         // Get a legit request_hash signature, agent_id
         let secret: [u8; 32] = [0_u8; SECRET_KEY_LENGTH];
@@ -219,8 +249,8 @@ mod tests {
         // Now lets sign some payload
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/abba".to_string(),
-            body_string: "\"something\": \"interesting\"".to_string(),
+            request: "/someuri".to_string(),
+            body: "".to_string(),
         };
 
         let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
@@ -246,8 +276,8 @@ mod tests {
 
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/abba".to_string(),
-            body_string: "\"something\": \"interesting\"".to_string(),
+            request: "/someuri".to_string(),
+            body: "".to_string(),
         };
 
         let mut headers = HeaderMap::new();

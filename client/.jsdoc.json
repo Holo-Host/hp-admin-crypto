@@ -1,0 +1,7 @@
+{
+    "plugins": ["plugins/markdown"],
+    "templates": {
+        "referenceTitle": "HoloPort Admin Crypto Client Class",
+        "disableSort": true
+    }
+}

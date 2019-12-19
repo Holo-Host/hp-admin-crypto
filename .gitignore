@@ -1,2 +1,4 @@
 result
 target/
+pkg/
+node_modules/

@@ -64,7 +64,7 @@ fn new_inner(hc_public_key_string: String, email: String, password: String) -> F
         base36::decode(&hc_public_key_string).map_err(|e| JsValue::from(e.to_string()))?;
     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).map_err(into_js_error)?;
     let keypair = admin_keypair_from(hc_public_key, &email, &password)
-        .map_err(|e| JsValue::from(e.to_string()))?;
+        .map_err(|e| into_js_error(e.compat()))?;
     Ok(keypair)
 }
 

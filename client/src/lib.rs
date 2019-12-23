@@ -37,14 +37,14 @@ impl HpAdminKeypair {
     /// const payload = {
     ///     method: String,
     ///     request: String,
-    ///     body: String
+    ///     body: String || undefined
     /// }
     /// @example
     /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
     /// const payload = {
     ///     method: "get",
     ///     request: "/someuri",
-    ///     body: ""
+    ///     body: "/somebody"
     /// }
     /// myKeys.sign( payload );
     #[wasm_bindgen]

@@ -18,9 +18,9 @@ const PASSWORD = "abba";
 let kp = new HpAdminKeypair(HC_PUBLIC_KEY, EMAIL, PASSWORD);
 
 const payload = {
-    method: "get",
-    request: "/someuri",
-    body: ""
+    method: "get",          // String
+    request: "/someuri",    // String
+    body: "somebody"        // String || undefined
 }
 
 console.log(kp.sign(payload));

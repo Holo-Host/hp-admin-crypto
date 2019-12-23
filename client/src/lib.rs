@@ -33,18 +33,13 @@ impl HpAdminKeypair {
     }
 
     /// @description Sign payload and return base64 encoded signature.
-    /// Requires properly formatted payload:
-    /// const payload = {
-    ///     method: String,
-    ///     request: String,
-    ///     body: String || undefined
-    /// }
+    /// Requires properly formatted payload (see example)
     /// @example
     /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
     /// const payload = {
-    ///     method: "get",
-    ///     request: "/someuri",
-    ///     body: "/somebody"
+    ///     method: "get",        // String
+    ///     request: "/someuri",  // String
+    ///     body: "/somebody"     // String || undefined
     /// }
     /// myKeys.sign( payload );
     #[wasm_bindgen]

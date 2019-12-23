@@ -13,7 +13,7 @@ pub struct HpAdminKeypair(Keypair);
 struct Payload {
     method: String,
     request: String,
-    body: String,
+    body: Option<String>,
 }
 
 #[wasm_bindgen]
@@ -82,7 +82,7 @@ mod tests {
     const EMAIL: &str = "pj@abba.pl";
     const PASSWORD: &str = "abba";
     const EXPECTED_SIGNATURE: &str =
-        "b1QKomb7z1/W6gb0bNwc85OhdZED71NFenkCg5xBFFwSYEFJnqo/jcNn3RZbPPJwTBSN5bTEt0jCI1wtvDTGCQ";
+        "EHl16e8ZRMhVk1BpvPxuc8PDCNUcZfWPDgU+GuOVX5r2SNzzwSK4WAXC8+Hc0lF2JpDcxMTEHVCp3KNAd4zlAA";
     const WRONG_SIGNATURE: &str =
         "dQlFxqMQh0idWk6anOerf7b9/XssKkvSrVIv9gMuf7M31ivli6BM2ktCsv9FHB/2FfdwO4LS8muOkFjSt7uAAg";
     const EXPECTED_KEYPAIR_BYTES: [u8; 64] = [
@@ -129,7 +129,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             request: "/someuri".to_string(),
-            body: "".to_string(),
+            body: None,
         };
 
         let payload_js = JsValue::from_serde(&payload).unwrap();
@@ -149,7 +149,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             request: "/someuri".to_string(),
-            body: "".to_string(),
+            body: Some("".to_string()),
         };
         let payload_js = JsValue::from_serde(&payload).unwrap();
         let my_keypair = HpAdminKeypair::new(
@@ -169,10 +169,12 @@ mod tests {
         struct PayloadErr {
             method: String,
             request: String,
+            body: u8
         }
         let payload_err = PayloadErr {
             method: "get".to_string(),
             request: "/someuri".to_string(),
+            body: 1
         };
 
         let payload_err_js = JsValue::from_serde(&payload_err).unwrap();

@@ -29,7 +29,7 @@ lazy_static! {
 struct Payload {
     method: String,
     request: String,
-    body: String,
+    body: Option<String>,
 }
 
 // Create response based on the request parameters
@@ -73,7 +73,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 let payload = Payload {
                     method: parts.method.to_string(),
                     request: req_uri_string,
-                    body: body,
+                    body: Some(body),
                 };
 
                 let public_key = match read_hp_pubkey() {
@@ -211,7 +211,7 @@ mod tests {
     #[test]
     fn verify_signature_match_client() {
         let expected_signature: &str =
-            "b1QKomb7z1/W6gb0bNwc85OhdZED71NFenkCg5xBFFwSYEFJnqo/jcNn3RZbPPJwTBSN5bTEt0jCI1wtvDTGCQ";
+            "EHl16e8ZRMhVk1BpvPxuc8PDCNUcZfWPDgU+GuOVX5r2SNzzwSK4WAXC8+Hc0lF2JpDcxMTEHVCp3KNAd4zlAA";
         let secret: [u8; 32] = [
             82, 253, 185, 87, 98, 217, 46, 233, 252, 159, 103, 182, 121, 229, 22, 25, 34, 216, 81,
             60, 31, 204, 200, 63, 63, 233, 220, 47, 221, 74, 86, 129,
@@ -224,7 +224,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             request: "/someuri".to_string(),
-            body: "".to_string(),
+            body: None,
         };
 
         let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
@@ -250,7 +250,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             request: "/someuri".to_string(),
-            body: "".to_string(),
+            body: Some("\"a:\"b\"\"".to_string()),
         };
 
         let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
@@ -277,7 +277,7 @@ mod tests {
         let payload = Payload {
             method: "get".to_string(),
             request: "/someuri".to_string(),
-            body: "".to_string(),
+            body: None
         };
 
         let mut headers = HeaderMap::new();

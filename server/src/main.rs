@@ -63,8 +63,14 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                     req_uri_string
                 );
 
-                let body = match String::from_utf8(body.to_vec()) {
-                    Ok(s) => s,
+                let body_option = match String::from_utf8(body.to_vec()) {
+                    Ok(s) => {
+                        if s == "" {
+                            None
+                        } else {
+                            Some(s)
+                        }
+                    },
                     Err(e) => {
                         debug!("Error parsing request body: {}", e);
                         return respond_success(false);
@@ -74,7 +80,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 let payload = Payload {
                     method: parts.method.to_string(),
                     request: req_uri_string,
-                    body: Some(body),
+                    body: body_option,
                 };
 
                 let public_key = match read_hp_pubkey() {

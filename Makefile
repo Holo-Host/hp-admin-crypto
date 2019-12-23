@@ -25,10 +25,10 @@ nix-%:
 
 # Build all targets
 .PHONY: build
-build:		client/pkg/hp_admin_key_manager_node.js	\
-		target/release/hp_admin_crypto_server
+build:		client/pkg/hp-admin-keypair_node.js	\
+		target/release/hp-admin-crypto-server
 
-client/pkg/hp_admin_key_manager_node.js: client/src/lib.rs
+client/pkg/hp-admin-keypair_node.js: client/src/lib.rs
 	cd client && ./build.sh
 
 target/release/hp_admin_crypto_server: server/src/main.rs
@@ -42,16 +42,14 @@ test:		test-rust test-js
 test-rust:
 	cargo test
 
-crypto-server.PID: 
-	$^ & echo $$! > $@
-
 # A (poor) example of starting a server, running some tests, and shutting down the server
 test-js:	target/release/hp-admin-crypto-server
 	@PID=$$( $< > $@.out 2>&1 & echo $$! ); \
+	EXP="401 Unauthorized"; \
 	GOT=$$( curl -v -X POST \
 	  --header "x-hpos-admin-signature: boo==" \
 	  --data '{"method": "get", "request": "/api/v1/config?a=b", "body": "something" }' \
 	    http://127.0.0.1:2884 2>&1 \
-	  | sed -ne "s/< HTTP\/1.1 \(.*\)/\1/p" ); \
-	[[ "$$GOT" == "200 OK" ]] && echo OK || echo "ERROR: '200 OK' Expected; got '$$GOT'"; \
+	  | sed -ne "s/^< HTTP\/1.1 \([^\r\n]*\).*$$/\1/p" ); \
+	[[ "$$GOT" == "$$EXP" ]] && printf "OK: Expected: '%s'" "$$EXP" || printf "*** ERROR: Expected: '%s', Got: '%s'" "$$EXP" "$$GOT"; \
 	kill $$PID

@@ -28,8 +28,8 @@ lazy_static! {
 #[derive(Serialize, Deserialize, Debug)]
 struct Payload {
     method: String,
-    uri: String,
-    body_string: String,
+    request: String,
+    body: Option<String>,
 }
 
 // Create response based on the request parameters
@@ -62,7 +62,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                     req_uri_string
                 );
 
-                let body_string = match String::from_utf8(body.to_vec()) {
+                let body = match String::from_utf8(body.to_vec()) {
                     Ok(s) => s,
                     Err(e) => {
                         debug!("Error parsing request body: {}", e);
@@ -72,8 +72,8 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
 
                 let payload = Payload {
                     method: parts.method.to_string(),
-                    uri: req_uri_string,
-                    body_string: body_string,
+                    request: req_uri_string,
+                    body: Some(body),
                 };
 
                 let public_key = match read_hp_pubkey() {
@@ -209,6 +209,36 @@ mod tests {
     use std::convert::From;
 
     #[test]
+    fn verify_signature_match_client() {
+        let expected_signature: &str =
+            "EHl16e8ZRMhVk1BpvPxuc8PDCNUcZfWPDgU+GuOVX5r2SNzzwSK4WAXC8+Hc0lF2JpDcxMTEHVCp3KNAd4zlAA";
+        let secret: [u8; 32] = [
+            82, 253, 185, 87, 98, 217, 46, 233, 252, 159, 103, 182, 121, 229, 22, 25, 34, 216, 81,
+            60, 31, 204, 200, 63, 63, 233, 220, 47, 221, 74, 86, 129,
+        ];
+        let secret_key = ed25519_dalek::SecretKey::from_bytes(&secret).unwrap();
+        let public_key = ed25519_dalek::PublicKey::from(&secret_key);
+        let secret_key_exp = ed25519_dalek::ExpandedSecretKey::from(&secret_key);
+
+        // Now lets sign some payload
+        let payload = Payload {
+            method: "get".to_string(),
+            request: "/someuri".to_string(),
+            body: None,
+        };
+
+        let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
+        let mut signature_base64 = String::new();
+        base64::encode_config_buf(
+            signature.to_bytes().as_ref(),
+            base64::STANDARD_NO_PAD,
+            &mut signature_base64,
+        );
+
+        assert_eq!(signature_base64, expected_signature);
+    }
+
+    #[test]
     fn verify_request_smoke() {
         // Get a legit request_hash signature, agent_id
         let secret: [u8; 32] = [0_u8; SECRET_KEY_LENGTH];
@@ -219,8 +249,8 @@ mod tests {
         // Now lets sign some payload
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/abba".to_string(),
-            body_string: "\"something\": \"interesting\"".to_string(),
+            request: "/someuri".to_string(),
+            body: Some("\"a:\"b\"\"".to_string()),
         };
 
         let signature = secret_key_exp.sign(&serde_json::to_vec(&payload).unwrap(), &public_key);
@@ -246,8 +276,8 @@ mod tests {
 
         let payload = Payload {
             method: "get".to_string(),
-            uri: "/abba".to_string(),
-            body_string: "\"something\": \"interesting\"".to_string(),
+            request: "/someuri".to_string(),
+            body: None
         };
 
         let mut headers = HeaderMap::new();

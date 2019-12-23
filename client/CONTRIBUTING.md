@@ -20,7 +20,7 @@ cargo test
 ### Wasm-pack unit tests
 Test interaction with created Wasm package in selected environments:
 ```
-wasm-pack --firefox
+wasm-pack test --firefox
 ```
 Must specify at least one of `--node`, `--chrome`, `--firefox`, or `--safari`.
 
@@ -35,7 +35,7 @@ This will spin up a webpack hot reload server.
 ## Generate docs
 Publish docs only on `gh-pages` branch with:
 ```
-npx jsdoc pkg/hp_admin_key_manager.js --configure .jsdoc.json --destination docs
+npx jsdoc pkg/hp_admin_keypair.js --configure .jsdoc.json --destination docs
 ```
 
 ## Publish

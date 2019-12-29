@@ -150,10 +150,10 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
 
     info!("Reading HP Admin Public Key from file.");
 
-    let hpos_config_path = match env::var("HPOS_STATE_PATH") {
+    let hpos_config_path = match env::var("HPOS_CONFIG_PATH") {
         Ok(s) => s,
         Err(e) => {
-            error!("HPOS_STATE_PATH: {}", e);
+            error!("HPOS_CONFIG_PATH: {}", e);
             return Err("Can't read HP Admin PublicKey from file.")?;
         }
     };

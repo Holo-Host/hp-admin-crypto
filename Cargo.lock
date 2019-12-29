@@ -86,7 +86,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "base36"
 version = "0.0.0"
-source = "git+https://github.com/transumption-unstable/base36?rev=4e6981e13ec5f3748dfe9b8870aa4e8ed749096d#4e6981e13ec5f3748dfe9b8870aa4e8ed749096d"
+source = "git+https://github.com/transumption-unstable/base36?branch=2019-12-18-nix#4e6981e13ec5f3748dfe9b8870aa4e8ed749096d"
 dependencies = [
  "base-x 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -569,7 +569,7 @@ dependencies = [
 name = "hp-admin-keypair"
 version = "0.1.2"
 dependencies = [
- "base36 0.0.0 (git+https://github.com/transumption-unstable/base36?rev=4e6981e13ec5f3748dfe9b8870aa4e8ed749096d)",
+ "base36 0.0.0 (git+https://github.com/transumption-unstable/base36?branch=2019-12-18-nix)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "console_error_panic_hook 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ed25519-dalek 1.0.0-pre.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2129,7 +2129,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum backtrace 0.3.40 (registry+https://github.com/rust-lang/crates.io-index)" = "924c76597f0d9ca25d762c25a4d369d51267536465dc5064bdf0eb073ed477ea"
 "checksum backtrace-sys 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)" = "5d6575f128516de27e3ce99689419835fce9643a9b215a14d2b5b685be018491"
 "checksum base-x 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "1b20b618342cf9891c292c4f5ac2cde7287cc5c87e87e9c769d617793607dec1"
-"checksum base36 0.0.0 (git+https://github.com/transumption-unstable/base36?rev=4e6981e13ec5f3748dfe9b8870aa4e8ed749096d)" = "<none>"
+"checksum base36 0.0.0 (git+https://github.com/transumption-unstable/base36?branch=2019-12-18-nix)" = "<none>"
 "checksum base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0b25d992356d2eb0ed82172f5248873db5560c4721f564b13cb5193bda5e668e"
 "checksum base64 0.9.3 (registry+https://github.com/rust-lang/crates.io-index)" = "489d6c0ed21b11d038c31b6ceccca973e65d73ba3bd8ecb9a2babf5546164643"
 "checksum bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"

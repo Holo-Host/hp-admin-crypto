@@ -1,4 +1,4 @@
-{ pkgs ? import ./pkgs.nix {} }:
+{ pkgs ? import ./nixpkgs.nix {} }:
 
 with pkgs;
 
@@ -10,23 +10,21 @@ in
 {
   hp-admin-crypto-server = buildRustPackage rustPlatform {
     name = "hp-admin-crypto-server";
-    src = gitignoreSource ./server;
-    cargoDir = ".";
+    src = gitignoreSource ./.;
+    cargoDir = "server";
 
     buildInputs = lib.optionals stdenv.isDarwin [ Security ];
   };
 
   hp-admin-keypair = buildRustPackage rustPlatform {
-	  name = "hp-admin-keypair";
-    src = gitignoreSource ./client;
-    cargoDir = ".";
+    name = "hp-admin-keypair";
+    src = gitignoreSource ./.;
+    cargoDir = "client";
 
     nativeBuildInputs = with buildPackages; [
       nodejs-12_x
       pkgconfig
       (wasm-pack.override { inherit rustPlatform; })
     ];
-
-    # buildInputs = [ openssl ];
   };
 }

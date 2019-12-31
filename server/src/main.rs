@@ -13,8 +13,8 @@ use std::error::Error;
 use std::sync::Mutex;
 use std::{env, fs};
 
-use ed25519_dalek::{PublicKey, Signature, Keypair};
-use hpos_config_core::config::{admin_keypair_from, Config};
+use ed25519_dalek::{PublicKey, Signature};
+use hpos_config_core::config::Config;
 
 use log::{debug, error, info};
 
@@ -206,6 +206,8 @@ fn main() {
 mod tests {
     use super::*;
     use base36;
+    use ed25519_dalek::Keypair;
+    use hpos_config_core::config::admin_keypair_from;
 
     const HC_PUBLIC_KEY: &str = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";
     const EMAIL: &str = "pj@abba.pl";
@@ -214,10 +216,10 @@ mod tests {
     #[test]
     fn verify_hp_admin_match() {
         let expected_hp_admin_pubkey: &str = "FBtaf29RmsFketdMt8LoI2RCwhDKj6PSAOQhe3A/3Bw";
-        
+
         let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
         let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-        
+
         let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
 
         let hp_admin_pubkey = base64::encode_config(
@@ -235,7 +237,7 @@ mod tests {
 
         let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
         let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-        
+
         let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
 
         // Now lets sign some payload
@@ -260,7 +262,7 @@ mod tests {
     fn verify_request_smoke() {
         let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
         let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-        
+
         let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
 
         // Now lets sign some payload
@@ -281,14 +283,17 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
-        assert_eq!(verify_request(payload, headers, read_hp_pubkey().unwrap()).unwrap(), true)
+        assert_eq!(
+            verify_request(payload, headers, read_hp_pubkey().unwrap()).unwrap(),
+            true
+        )
     }
 
     #[test]
     fn verify_request_fail() {
         let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
         let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-        
+
         let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
 
         // Now lets sign some payload
@@ -309,6 +314,9 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
 
-        assert_eq!(verify_request(payload, headers, admin_keypair.public).unwrap(), false)
+        assert_eq!(
+            verify_request(payload, headers, admin_keypair.public).unwrap(),
+            false
+        )
     }
 }

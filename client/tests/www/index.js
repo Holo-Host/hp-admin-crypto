@@ -1,14 +1,14 @@
 import { HpAdminKeypair } from "@holo-host/hp-admin-keypair";
 
-const HC_PUBLIC_KEY = "3llrdmlase6xwo9drzs6qpze40hgaucyf7g8xpjze6dz32s957";
+const HC_PUBLIC_KEY = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";
 const EMAIL = "pj@abba.pl";
-const PASSWORD = "abba";
+const PASSWORD = "abbaabba";
 
 let kp = new HpAdminKeypair(HC_PUBLIC_KEY, EMAIL, PASSWORD);
 
 const payload = {
     method: "get",
-    request: "/someuri",
+    request: "/api/v1/config",
     body: ""
 }
 

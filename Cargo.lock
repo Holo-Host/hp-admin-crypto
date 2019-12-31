@@ -553,6 +553,7 @@ dependencies = [
 name = "hp-admin-crypto-server"
 version = "0.1.0"
 dependencies = [
+ "base36 0.0.0 (git+https://github.com/transumption-unstable/base36?branch=2019-12-18-nix)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ed25519-dalek 1.0.0-pre.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",

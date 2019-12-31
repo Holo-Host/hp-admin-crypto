@@ -142,47 +142,4 @@ mod tests {
 
         assert_eq!(signature, expected_signature);
     }
-
-/*    #[wasm_bindgen_test]
-    fn create_incorrect_signature() {
-        let payload = Payload {
-            method: "get".to_string(),
-            request: "/someuri".to_string(),
-            body: "".to_string(),
-        };
-        let payload_js = JsValue::from_serde(&payload).unwrap();
-        let my_keypair = HpAdminKeypair::new(
-            HC_PUBLIC_KEY.to_string(),
-            EMAIL.to_string(),
-            PASSWORD.to_string(),
-        )
-        .unwrap();
-        let signature = my_keypair.sign(&payload_js).unwrap();
-
-        assert_ne!(signature, WRONG_SIGNATURE);
-    }
-
-    #[wasm_bindgen_test]
-    fn pass_incorrect_payload() {
-        #[derive(Serialize, Deserialize, Debug)]
-        struct PayloadErr {
-            method: String,
-            request: String,
-        }
-        let payload_err = PayloadErr {
-            method: "get".to_string(),
-            request: "/someuri".to_string(),
-        };
-
-        let payload_err_js = JsValue::from_serde(&payload_err).unwrap();
-        let my_keypair = HpAdminKeypair::new(
-            HC_PUBLIC_KEY.to_string(),
-            EMAIL.to_string(),
-            PASSWORD.to_string(),
-        )
-        .unwrap();
-        let error = my_keypair.sign(&payload_err_js);
-
-        assert!(error.is_err());
-    }*/
 }

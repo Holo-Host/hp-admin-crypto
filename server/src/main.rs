@@ -37,7 +37,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     let (parts, body) = req.into_parts();
 
     match parts.uri.path() {
-        "/" => {
+        "/auth/" => {
             let entire_body = body.concat2();
             let res = entire_body.map(|body| {
                 // Extract X-Original-URI header value, 401 when problems occur

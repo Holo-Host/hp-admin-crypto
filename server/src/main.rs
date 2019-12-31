@@ -71,7 +71,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 };
 
                 let payload = Payload {
-                    method: parts.method.to_string(),
+                    method: parts.method.to_string().to_ascii_lowercase(),
                     request: req_uri_string,
                     body: body,
                 };

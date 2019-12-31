@@ -22,8 +22,9 @@ in
     cargoDir = "client";
 
     nativeBuildInputs = with buildPackages; [
-      nodejs-12_x
+      nodejs
       pkgconfig
+      jq
       (wasm-pack.override { inherit rustPlatform; })
     ];
   };

@@ -31,7 +31,7 @@ build:		client/pkg/hp-admin-keypair_node.js	\
 client/pkg/hp-admin-keypair_node.js: client/src/lib.rs
 	cd client && ./build.sh
 
-target/release/hp_admin_crypto_server: server/src/main.rs
+target/release/hp-admin-crypto-server: server/src/main.rs
 	cargo build --release
 
 
@@ -43,7 +43,7 @@ test-rust:
 	cargo test
 
 # A (poor) example of starting a server, running some tests, and shutting down the server
-test-js:	target/release/hp-admin-crypto-server
+test-js:	target/release/hp-admin-crypto-server build
 	@PID=$$( $< > $@.out 2>&1 & echo $$! ); \
 	EXP="401 Unauthorized"; \
 	GOT=$$( curl -v -X POST \

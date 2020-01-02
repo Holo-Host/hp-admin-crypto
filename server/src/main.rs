@@ -258,7 +258,7 @@ mod tests {
         assert_eq!(signature_base64, expected_signature);
     }
 
-    #[test]
+    /*#[test]
     fn verify_request_smoke() {
         let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
         let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
@@ -287,7 +287,7 @@ mod tests {
             verify_request(payload, headers, read_hp_pubkey().unwrap()).unwrap(),
             true
         )
-    }
+    }*/
 
     #[test]
     fn verify_request_fail() {

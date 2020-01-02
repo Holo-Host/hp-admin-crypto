@@ -78,19 +78,9 @@ mod tests {
     use super::*;
     use wasm_bindgen_test::*;
 
-    const HC_PUBLIC_KEY: &str = "3llrdmlase6xwo9drzs6qpze40hgaucyf7g8xpjze6dz32s957";
+    const HC_PUBLIC_KEY: &str = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";
     const EMAIL: &str = "pj@abba.pl";
-    const PASSWORD: &str = "abba";
-    const EXPECTED_SIGNATURE: &str =
-        "b1QKomb7z1/W6gb0bNwc85OhdZED71NFenkCg5xBFFwSYEFJnqo/jcNn3RZbPPJwTBSN5bTEt0jCI1wtvDTGCQ";
-    const WRONG_SIGNATURE: &str =
-        "dQlFxqMQh0idWk6anOerf7b9/XssKkvSrVIv9gMuf7M31ivli6BM2ktCsv9FHB/2FfdwO4LS8muOkFjSt7uAAg";
-    const EXPECTED_KEYPAIR_BYTES: [u8; 64] = [
-        82, 253, 185, 87, 98, 217, 46, 233, 252, 159, 103, 182, 121, 229, 22, 25, 34, 216, 81, 60,
-        31, 204, 200, 63, 63, 233, 220, 47, 221, 74, 86, 129, 103, 252, 79, 147, 189, 195, 172, 28,
-        182, 243, 169, 66, 16, 196, 175, 183, 244, 207, 211, 230, 5, 171, 105, 190, 23, 195, 137,
-        80, 99, 254, 9, 250,
-    ];
+    const PASSWORD: &str = "abbaabba";
 
     impl HpAdminKeypair {
         pub fn to_bytes(&self) -> [u8; 64] {
@@ -100,15 +90,21 @@ mod tests {
 
     #[test]
     fn create_correct_keypair() {
-        let my_keypair = HpAdminKeypair::new(
+        let expected_hp_admin_pubkey: &str = "FBtaf29RmsFketdMt8LoI2RCwhDKj6PSAOQhe3A/3Bw";
+
+        let admin_keypair = HpAdminKeypair::new(
             HC_PUBLIC_KEY.to_string(),
             EMAIL.to_string(),
             PASSWORD.to_string(),
         )
         .unwrap();
-        let my_keypair_bytes = my_keypair.to_bytes();
 
-        assert_eq!(my_keypair_bytes[..], EXPECTED_KEYPAIR_BYTES[..]);
+        let hp_admin_pubkey = base64::encode_config(
+            &admin_keypair.0.public.to_bytes()[..],
+            base64::STANDARD_NO_PAD,
+        );
+
+        assert_eq!(hp_admin_pubkey, expected_hp_admin_pubkey);
     }
 
     #[test]
@@ -126,9 +122,12 @@ mod tests {
 
     #[wasm_bindgen_test]
     fn create_correct_signature() {
+        let expected_signature =
+            "izQfuNi+RYNhuEN8qHCQUUOkT45V8I97uwmTGlLAuECROH8Lh0daCGdo4Nneg+BvUzmBgHHfF73HCTOPGXl7Dw";
+
         let payload = Payload {
             method: "get".to_string(),
-            request: "/someuri".to_string(),
+            request: "/api/v1/config".to_string(),
             body: "".to_string(),
         };
 
@@ -141,49 +140,6 @@ mod tests {
         .unwrap();
         let signature = my_keypair.sign(&payload_js).unwrap();
 
-        assert_eq!(signature, EXPECTED_SIGNATURE);
-    }
-
-    #[wasm_bindgen_test]
-    fn create_incorrect_signature() {
-        let payload = Payload {
-            method: "get".to_string(),
-            request: "/someuri".to_string(),
-            body: "".to_string(),
-        };
-        let payload_js = JsValue::from_serde(&payload).unwrap();
-        let my_keypair = HpAdminKeypair::new(
-            HC_PUBLIC_KEY.to_string(),
-            EMAIL.to_string(),
-            PASSWORD.to_string(),
-        )
-        .unwrap();
-        let signature = my_keypair.sign(&payload_js).unwrap();
-
-        assert_ne!(signature, WRONG_SIGNATURE);
-    }
-
-    #[wasm_bindgen_test]
-    fn pass_incorrect_payload() {
-        #[derive(Serialize, Deserialize, Debug)]
-        struct PayloadErr {
-            method: String,
-            request: String,
-        }
-        let payload_err = PayloadErr {
-            method: "get".to_string(),
-            request: "/someuri".to_string(),
-        };
-
-        let payload_err_js = JsValue::from_serde(&payload_err).unwrap();
-        let my_keypair = HpAdminKeypair::new(
-            HC_PUBLIC_KEY.to_string(),
-            EMAIL.to_string(),
-            PASSWORD.to_string(),
-        )
-        .unwrap();
-        let error = my_keypair.sign(&payload_err_js);
-
-        assert!(error.is_err());
+        assert_eq!(signature, expected_signature);
     }
 }

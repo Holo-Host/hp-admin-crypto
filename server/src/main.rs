@@ -27,7 +27,7 @@ lazy_static! {
     static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
 struct Payload {
     method: String,
     request: String,
@@ -100,8 +100,8 @@ fn create_payload(headers: &HeaderMap<HeaderValue>) -> Result<Payload, Box<dyn E
     let body_str = match headers.get(&*X_ORIGINAL_BODY) {
         Some(s) => s.to_str(),
         None => {
-            debug!("Received request with no \"X-Original-Body\" header.");
-            return Err("")?;
+            debug!("Received request with no \"X-Original-Body\" header, using empty body.");
+            Ok("")
         }
     };
 

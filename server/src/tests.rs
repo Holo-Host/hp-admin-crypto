@@ -87,6 +87,37 @@ fn verify_request_smoke() {
 }
 
 #[test]
+fn crete_payload_no_body_header() {
+    let mut headers = HeaderMap::new();
+    let expected_payload = Payload {
+        method: "get".to_string(),
+        request: "/api/v1/config".to_string(),
+        body: "".to_string(),
+    };
+    headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
+    headers.insert("x-original-method", expected_payload.method.parse().unwrap());
+
+    let payload = create_payload(&headers).unwrap();
+    assert_eq!(payload, expected_payload);
+}
+
+#[test]
+fn crete_payload_check_body() {
+    let mut headers = HeaderMap::new();
+    let expected_payload = Payload {
+        method: "get".to_string(),
+        request: "/api/v1/config".to_string(),
+        body: "this_is_body".to_string(),
+    };
+    headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
+    headers.insert("x-original-method", expected_payload.method.parse().unwrap());
+    headers.insert("x-original-body", expected_payload.body.parse().unwrap());
+
+    let payload = create_payload(&headers).unwrap();
+    assert_eq!(payload, expected_payload);
+}
+
+#[test]
 fn verify_request_fail() {
     let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();

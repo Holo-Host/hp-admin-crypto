@@ -12,7 +12,6 @@ base64 = "0.10.1"
 console_error_panic_hook = "0.1.6"
 ed25519-dalek = { version = "1.0.0-pre.2", features = ["nightly", "serde"] }
 failure = "0.1.5"
-hpos-config-core = { git = "https://github.com/Holo-Host/hpos-config", branch = "develop" }
 js-sys = "0.3.30"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.39"
@@ -22,6 +21,10 @@ wasm-bindgen-cli = "0.2.51"
 [dependencies.base36]
 git = "https://github.com/transumption-unstable/base36"
 branch = "2019-12-18-nix"
+
+[dependencies.hpos-config-core]
+git = "https://github.com/Holo-Host/hpos-config"
+branch = "develop"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2.50"

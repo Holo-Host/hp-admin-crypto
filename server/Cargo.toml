@@ -12,7 +12,6 @@ ed25519-dalek = { version = "1.0.0-pre.2", features = ["nightly", "serde"] }
 env_logger = "0.6.2"
 futures = "0.1.25"
 hpos-config-core = { git = "https://github.com/Holo-Host/hpos-config", branch = "develop" }
-http = "0.2.0"
 hyper = "0.12"
 lazy_static = "1.2"
 log = "0.4.8"

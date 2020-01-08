@@ -67,59 +67,50 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn create_payload(headers: &HeaderMap<HeaderValue>) -> Result<Payload, Box<dyn Error>> {
-    let request_str = match headers.get(&*X_ORIGINAL_URI) {
-        Some(s) => s.to_str(),
+fn path_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    let uri_str = match headers.get(&*X_ORIGINAL_URI) {
+        Some(s) => s.to_str()?,
         None => {
             debug!("Received request with no \"X-Original-URI\" header.");
             return Err("")?;
         }
     };
 
-    let request = match request_str {
-        Ok(s) => s.to_string(),
-        _ => {
-            debug!("Could not parse \"X-Original-URI\" header value.");
-            return Err("")?;
-        }
-    };
+    let uri = Uri::builder()
+        .scheme("https")
+        .authority("abba.pl")
+        .path_and_query(uri_str)
+        .build()
+        .unwrap();
 
-    let method_str = match headers.get(&*X_ORIGINAL_METHOD) {
-        Some(s) => s.to_str(),
+    Ok(uri.path().to_string())
+}
+
+fn method_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    match headers.get(&*X_ORIGINAL_METHOD) {
+        Some(s) => return Ok(s.to_str()?.to_string().to_ascii_lowercase()),
         None => {
             debug!("Received request with no \"X-Original-Method\" header.");
             return Err("")?;
         }
     };
+}
 
-    let method = match method_str {
-        Ok(s) => s.to_string().to_ascii_lowercase(),
-        _ => {
-            debug!("Could not parse \"X-Original-Method\" header value.");
-            return Err("")?;
-        }
-    };
-
-    let body_str = match headers.get(&*X_ORIGINAL_BODY) {
-        Some(s) => s.to_str(),
+fn body_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    match headers.get(&*X_ORIGINAL_BODY) {
+        Some(s) => return Ok(s.to_str()?.to_string()),
         None => {
             debug!("Received request with no \"X-Original-Body\" header, using empty body.");
-            Ok("")
+            return Ok("".to_string());
         }
     };
+}
 
-    let body = match body_str {
-        Ok(s) => s.to_string(),
-        _ => {
-            debug!("Could not parse \"X-Original-Body\" header value.");
-            return Err("")?;
-        }
-    };
-
+fn create_payload(headers: &HeaderMap<HeaderValue>) -> Result<Payload, Box<dyn Error>> {
     Ok(Payload {
-        method: method,
-        request: request,
-        body: body,
+        method: method_from_headers(headers)?,
+        request: path_from_headers(headers)?,
+        body: body_from_headers(headers)?,
     })
 }
 

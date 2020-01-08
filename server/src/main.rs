@@ -3,7 +3,8 @@ use futures::{
     Future, Stream,
 };
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
-use hyper::{service, Body, Request, Response, Server, StatusCode};
+use hyper::{service, Body, Request, Response, Server, StatusCode, Uri};
+use url::form_urlencoded;
 
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -45,9 +46,11 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
             let res = entire_body.map(|_| {
                 if let Ok(public_key) = read_hp_pubkey() {
                     if let Ok(payload) = create_payload(&parts.headers) {
-                        if let Ok(is_verified) = verify_request(payload, parts.headers, public_key)
-                        {
-                            return respond_success(is_verified)
+                        if let Ok(signature) = signature_from_parts(parts.headers, parts.uri) {
+                            if let Ok(is_verified) = verify_request(payload, signature, public_key)
+                            {
+                                return respond_success(is_verified);
+                            }
                         }
                     }
                 }
@@ -122,7 +125,7 @@ fn create_payload(headers: &HeaderMap<HeaderValue>) -> Result<Payload, Box<dyn E
 
 fn verify_request(
     payload: Payload,
-    headers: HeaderMap<HeaderValue>,
+    signature: Signature,
     public_key: PublicKey,
 ) -> Result<bool, Box<dyn Error>> {
     debug!(
@@ -132,19 +135,12 @@ fn verify_request(
 
     let payload_vec = serde_json::to_vec(&payload)?;
 
-    if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
-        if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD)
-        {
-            if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
-                if public_key.verify(&payload_vec, &signature_bytes).is_ok() {
-                    debug!("Signature verified successfully");
-                    return Ok(true);
-                }
-            }
-        }
+    if public_key.verify(&payload_vec, &signature).is_ok() {
+        debug!("Signature verification passed");
+        return Ok(true);
     }
 
-    debug!("Signature verified unsuccessfully");
+    debug!("Signature verification failed");
     return Ok(false);
 }
 
@@ -205,6 +201,50 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     *HP_PUBLIC_KEY.lock()? = Some(pub_key);
 
     Ok(pub_key)
+}
+
+fn signature_from_parts(
+    headers: HeaderMap<HeaderValue>,
+    uri: Uri,
+) -> Result<Signature, Box<dyn Error>> {
+    if let Some(signature_base64) = extract_base64_signature(headers, uri) {
+        debug!("Received signature '{}'", signature_base64);
+        return parse_signature(signature_base64);
+    }
+
+    debug!("Received request with no signature");
+    Err("No signature 'X-Hpos-Admin-Signature' found in headers nor query string")?
+}
+
+fn extract_base64_signature(headers: HeaderMap<HeaderValue>, uri: Uri) -> Option<String> {
+    if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+        if let Ok(value_str) = value.to_str() {
+            return Some(value_str.to_string());
+        }
+    }
+
+    if let Some(query_str) = uri.query() {
+        let args = form_urlencoded::parse(query_str.as_bytes()).into_owned();
+
+        for arg in args {
+            let (key, value) = arg;
+            if key.to_ascii_lowercase() == "x-hpos-admin-signature".to_string() {
+                return Some(value);
+            }
+        }
+    }
+
+    None
+}
+
+fn parse_signature(signature_base64: String) -> Result<Signature, Box<dyn Error>> {
+    if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
+        if let Ok(signature) = Signature::from_bytes(&signature_vec) {
+            return Ok(signature);
+        }
+    };
+
+    Err("Signature is not parsable")?
 }
 
 fn main() {

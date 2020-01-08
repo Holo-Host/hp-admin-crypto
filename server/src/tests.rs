@@ -1,4 +1,5 @@
- use super::*;
+
+use super::*;
 use base36;
 use ed25519_dalek::Keypair;
 use hpos_config_core::config::admin_keypair_from;
@@ -80,8 +81,12 @@ fn verify_request_smoke() {
     let mut headers = HeaderMap::new();
     headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
+    let uri = Uri::from_static("http://example.com/foo");
+
+    let signature = signature_from_parts(headers, uri).unwrap();
+
     assert_eq!(
-        verify_request(payload, headers, read_hp_pubkey().unwrap()).unwrap(),
+        verify_request(payload, signature, read_hp_pubkey().unwrap()).unwrap(),
         true
     )
 }
@@ -95,7 +100,10 @@ fn crete_payload_no_body_header() {
         body: "".to_string(),
     };
     headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
-    headers.insert("x-original-method", expected_payload.method.parse().unwrap());
+    headers.insert(
+        "x-original-method",
+        expected_payload.method.parse().unwrap(),
+    );
 
     let payload = create_payload(&headers).unwrap();
     assert_eq!(payload, expected_payload);
@@ -110,7 +118,10 @@ fn crete_payload_check_body() {
         body: "this_is_body".to_string(),
     };
     headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
-    headers.insert("x-original-method", expected_payload.method.parse().unwrap());
+    headers.insert(
+        "x-original-method",
+        expected_payload.method.parse().unwrap(),
+    );
     headers.insert("x-original-body", expected_payload.body.parse().unwrap());
 
     let payload = create_payload(&headers).unwrap();
@@ -127,23 +138,51 @@ fn verify_request_fail() {
     // Now lets sign some payload
     let payload = Payload {
         method: "get".to_string(),
+        request: "/api/v1/status".to_string(),
+        body: "".to_string(),
+    };
+
+    let wrong_payload = Payload {
+        method: "put".to_string(),
         request: "/api/v1/config".to_string(),
         body: "".to_string(),
     };
 
-    let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
+    let wrong_signature = admin_keypair.sign(&serde_json::to_vec(&wrong_payload).unwrap());
     let mut signature_base64 = String::new();
     base64::encode_config_buf(
-        signature.to_bytes().as_ref(),
+        wrong_signature.to_bytes().as_ref(),
         base64::STANDARD_NO_PAD,
         &mut signature_base64,
     );
 
-    let mut headers = HeaderMap::new();
-    headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
-
     assert_eq!(
-        verify_request(payload, headers, admin_keypair.public).unwrap(),
+        verify_request(payload, wrong_signature, admin_keypair.public).unwrap(),
         false
     )
+}
+
+#[test]
+fn extract_correct_signature_1() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-hpos-admin-signature", "Right_signature".parse().unwrap());
+
+    let uri = Uri::from_static("http://example.com/foo?x-hpos-admin-signature=Wrong_signature");
+
+    match extract_base64_signature(headers, uri) {
+        Some(signature) => assert_eq!(signature, "Right_signature"),
+        None => panic!("Signature extraction failed"),
+    }
+}
+
+#[test]
+fn extract_correct_signature_2() {
+    let headers = HeaderMap::new();
+
+    let uri = Uri::from_static("http://example.com/foo?x-hpos-admin-signature=Right_signature");
+
+    match extract_base64_signature(headers, uri) {
+        Some(signature) => assert_eq!(signature, "Right_signature"),
+        None => panic!("Signature extraction failed"),
+    }
 }

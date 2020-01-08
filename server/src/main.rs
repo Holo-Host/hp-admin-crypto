@@ -46,7 +46,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
             let res = entire_body.map(|_| {
                 if let Ok(public_key) = read_hp_pubkey() {
                     if let Ok(payload) = create_payload(&parts.headers) {
-                        if let Ok(signature) = signature_from_parts(parts.headers, parts.uri) {
+                        if let Ok(signature) = signature_from_headers(parts.headers) {
                             if let Ok(is_verified) = verify_request(payload, signature, public_key)
                             {
                                 return respond_success(is_verified);
@@ -67,23 +67,30 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn path_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
-    let uri_str = match headers.get(&*X_ORIGINAL_URI) {
-        Some(s) => s.to_str()?,
-        None => {
-            debug!("Received request with no \"X-Original-URI\" header.");
-            return Err("")?;
+fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
+    if let Some(result) = headers.get(&*X_ORIGINAL_URI) {
+        if let Ok(uri_str) = result.to_str() {
+            let uri = Uri::builder()
+                .scheme("https")
+                .authority("abba.pl")
+                .path_and_query(uri_str)
+                .build()
+                .unwrap();
+
+            return Some(uri);
         }
-    };
+    }
 
-    let uri = Uri::builder()
-        .scheme("https")
-        .authority("abba.pl")
-        .path_and_query(uri_str)
-        .build()
-        .unwrap();
+    return None;
+}
 
-    Ok(uri.path().to_string())
+fn path_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    if let Some(uri) = uri_from_headers(headers) {
+        return Ok(uri.path().to_string());
+    }
+    
+    debug!("Received request with no path in \"X-Original-URI\" header.");
+    return Err("")?;
 }
 
 fn method_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
@@ -194,11 +201,8 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
     Ok(pub_key)
 }
 
-fn signature_from_parts(
-    headers: HeaderMap<HeaderValue>,
-    uri: Uri,
-) -> Result<Signature, Box<dyn Error>> {
-    if let Some(signature_base64) = extract_base64_signature(headers, uri) {
+fn signature_from_headers(headers: HeaderMap<HeaderValue>) -> Result<Signature, Box<dyn Error>> {
+    if let Some(signature_base64) = extract_base64_signature(headers) {
         debug!("Received signature '{}'", signature_base64);
         return parse_signature(signature_base64);
     }
@@ -207,20 +211,22 @@ fn signature_from_parts(
     Err("No signature 'X-Hpos-Admin-Signature' found in headers nor query string")?
 }
 
-fn extract_base64_signature(headers: HeaderMap<HeaderValue>, uri: Uri) -> Option<String> {
+fn extract_base64_signature(headers: HeaderMap<HeaderValue>) -> Option<String> {
     if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         if let Ok(value_str) = value.to_str() {
             return Some(value_str.to_string());
         }
     }
 
-    if let Some(query_str) = uri.query() {
-        let args = form_urlencoded::parse(query_str.as_bytes()).into_owned();
+    if let Some(uri) = uri_from_headers(&headers){
+        if let Some(query_str) = uri.query() {
+            let args = form_urlencoded::parse(query_str.as_bytes()).into_owned();
 
-        for arg in args {
-            let (key, value) = arg;
-            if key.to_ascii_lowercase() == "x-hpos-admin-signature".to_string() {
-                return Some(value);
+            for arg in args {
+                let (key, value) = arg;
+                if key.to_ascii_lowercase() == "x-hpos-admin-signature".to_string() {
+                    return Some(value);
+                }
             }
         }
     }

@@ -80,9 +80,7 @@ fn verify_request_smoke() {
     let mut headers = HeaderMap::new();
     headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
-    let uri = Uri::from_static("http://example.com/foo");
-
-    let signature = signature_from_parts(headers, uri).unwrap();
+    let signature = signature_from_headers(headers).unwrap();
 
     assert_eq!(
         verify_request(payload, signature, read_hp_pubkey().unwrap()).unwrap(),
@@ -165,10 +163,9 @@ fn verify_request_fail() {
 fn extract_correct_signature_1() {
     let mut headers = HeaderMap::new();
     headers.insert("x-hpos-admin-signature", "Right_signature".parse().unwrap());
+    headers.insert("x-original-uri", "/foo?x-hpos-admin-signature=Wrong_signature".parse().unwrap());
 
-    let uri = Uri::from_static("http://example.com/foo?x-hpos-admin-signature=Wrong_signature");
-
-    match extract_base64_signature(headers, uri) {
+    match extract_base64_signature(headers) {
         Some(signature) => assert_eq!(signature, "Right_signature"),
         None => panic!("Signature extraction failed"),
     }
@@ -176,11 +173,10 @@ fn extract_correct_signature_1() {
 
 #[test]
 fn extract_correct_signature_2() {
-    let headers = HeaderMap::new();
+    let mut headers = HeaderMap::new();
+    headers.insert("x-original-uri", "/foo?x-hpos-admin-signature=Right_signature".parse().unwrap());
 
-    let uri = Uri::from_static("http://example.com/foo?x-hpos-admin-signature=Right_signature");
-
-    match extract_base64_signature(headers, uri) {
+    match extract_base64_signature(headers) {
         Some(signature) => assert_eq!(signature, "Right_signature"),
         None => panic!("Signature extraction failed"),
     }

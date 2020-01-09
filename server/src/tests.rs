@@ -119,7 +119,7 @@ fn crete_payload_check_body() {
         "x-original-method",
         expected_payload.method.parse().unwrap(),
     );
-    headers.insert("x-original-body", expected_payload.body.parse().unwrap());
+    headers.insert("x-body-hash", expected_payload.body.parse().unwrap());
 
     let payload = create_payload(&headers).unwrap();
     assert_eq!(payload, expected_payload);

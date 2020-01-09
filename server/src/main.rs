@@ -24,7 +24,7 @@ lazy_static! {
     static ref X_ORIGINAL_METHOD: HeaderName =
         HeaderName::from_lowercase(b"x-original-method").unwrap();
     static ref X_ORIGINAL_BODY: HeaderName =
-        HeaderName::from_lowercase(b"x-original-body").unwrap();
+        HeaderName::from_lowercase(b"x-body-hash").unwrap();
     static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
 }
 
@@ -107,7 +107,7 @@ fn body_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn
     match headers.get(&*X_ORIGINAL_BODY) {
         Some(s) => return Ok(s.to_str()?.to_string()),
         None => {
-            debug!("Received request with no \"X-Original-Body\" header, using empty body.");
+            debug!("Received request with no \"X-Body-Hash\" header, using empty body.");
             return Ok("".to_string());
         }
     };

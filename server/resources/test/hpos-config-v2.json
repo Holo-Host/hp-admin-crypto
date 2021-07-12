@@ -1,0 +1,13 @@
+{
+    "v2": {
+      "seed": "3QHIescJ+c8J8ILaXjSRQ0aOdL1liJQzb5b9lRNa2y0",
+      "encrypted_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADdAch6xwn5zwnwgtpeNJFDRo50vWWIlDNvlv2VE1rbLatcq3Do0hCGPA5PMN6VjztSwnOq8jo024VvxAgaDc4p",
+      "registration_code": "tmp",
+      "settings": {
+        "admin": {
+          "email": "jack@holo.host",
+          "public_key": "hcakbvnokw4hi2iiimpaoj4yn5fmphnjme45k6i5djw4fn7caqgqnzyurqbczyi"
+        }
+      }
+    }
+  }

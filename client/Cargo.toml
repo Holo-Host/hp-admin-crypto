@@ -10,7 +10,7 @@ repository = "https://github.com/Holo-Host/hp-admin-crypto"
 [dependencies]
 base64 = "0.10.1"
 console_error_panic_hook = "0.1.6"
-ed25519-dalek = { version = "1.0.0-pre.2", features = ["nightly", "serde"] }
+ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 failure = "0.1.5"
 js-sys = "0.3.30"
 serde = { version = "1.0", features = ["derive"] }
@@ -24,7 +24,7 @@ branch = "2019-12-18-nix"
 
 [dependencies.hpos-config-core]
 git = "https://github.com/Holo-Host/hpos-config"
-branch = "develop"
+branch = "config-v2-07-07"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2.50"

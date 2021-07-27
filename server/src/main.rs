@@ -7,14 +7,16 @@ use futures::{
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
 use hyper::{service, Body, Request, Response, Server, StatusCode};
 
+use ed25519_dalek::ed25519::signature::Signature;
+use ed25519_dalek::PublicKey;
+use ed25519_dalek::Verifier;
+use hpos_config_core::config::Config;
+
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::sync::Mutex;
 use std::{env, fs};
-
-use ed25519_dalek::{PublicKey, Signature};
-use hpos_config_core::config::Config;
 
 use log::{debug, error, info};
 
@@ -207,6 +209,7 @@ mod tests {
     use super::*;
     use base36;
     use ed25519_dalek::Keypair;
+    use ed25519_dalek::Signer;
     use hpos_config_core::config::admin_keypair_from;
 
     const HC_PUBLIC_KEY: &str = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";

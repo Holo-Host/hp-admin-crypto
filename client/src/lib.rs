@@ -1,6 +1,7 @@
 pub mod util;
 
 use crate::util::*;
+use ed25519_dalek::Signer;
 use ed25519_dalek::{Keypair, PublicKey};
 use hpos_config_core::admin_keypair_from;
 use serde::*;

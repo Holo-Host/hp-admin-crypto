@@ -24,7 +24,7 @@ branch = "2019-12-18-nix"
 
 [dependencies.hpos-config-core]
 git = "https://github.com/Holo-Host/hpos-config"
-branch = "config-v2-07-07"
+branch = "config-v2-02-08"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2.50"

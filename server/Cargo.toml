@@ -19,7 +19,7 @@ serde_json = "1.0.39"
 
 [dependencies.hpos-config-core]
 git = "https://github.com/Holo-Host/hpos-config"
-branch = "config-v2-07-07"
+branch = "config-v2-02-08"
 
 [dev-dependencies.base36]
 git = "https://github.com/transumption-unstable/base36"

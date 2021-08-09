@@ -113,6 +113,8 @@ fn verify_request(
 ) -> Result<bool, Box<dyn Error>> {
     let payload_vec = serde_json::to_vec(&payload)?;
 
+    debug!("Using pub key: {:?}", public_key);
+
     if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD)
         {

@@ -1,13 +1,12 @@
 {
-    "v2": {
-      "seed": "3QHIescJ+c8J8ILaXjSRQ0aOdL1liJQzb5b9lRNa2y0",
-      "encrypted_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADdAch6xwn5zwnwgtpeNJFDRo50vWWIlDNvlv2VE1rbLatcq3Do0hCGPA5PMN6VjztSwnOq8jo024VvxAgaDc4p",
-      "registration_code": "tmp",
-      "settings": {
-        "admin": {
-          "email": "jack@holo.host",
-          "public_key": "hcakbvnokw4hi2iiimpaoj4yn5fmphnjme45k6i5djw4fn7caqgqnzyurqbczyi"
-        }
+  "v2": {
+    "encrypted_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADKZmCXinJ59rt+scbD89QWVlfbmEa7BTVPDpFI6iGg/f5EkOQzgAK+uhLjoobpqta2c5TBrJ25ltkMkE2J9zVW",
+    "registration_code": "7-determine-flatfoot",
+    "settings": {
+      "admin": {
+        "email": "joel+hc2@holo.host",
+        "public_key": "6F13qCqPLfsv4+J4zCRr6x2gGb34YHCyb4q8FXOuaZs"
       }
     }
   }
+}

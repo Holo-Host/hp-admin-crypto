@@ -7,7 +7,7 @@ edition = "2018"
 repository = "https://github.com/Holo-Host/hp-admin-crypto"
 
 [dependencies]
-base64 = "0.10.1"
+base64 = "0.13.0"
 ed25519-dalek = { version = "1.0.1", features = ["serde"] }
 env_logger = "0.6.2"
 futures = "0.1.25"
@@ -19,7 +19,7 @@ serde_json = "1.0.39"
 
 [dependencies.hpos-config-core]
 git = "https://github.com/Holo-Host/hpos-config"
-branch = "config-v2-02-08"
+rev = "bac6758c452974c13f08edb046b816b48bb317c7"
 
 [dev-dependencies.base36]
 git = "https://github.com/transumption-unstable/base36"

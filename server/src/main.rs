@@ -83,7 +83,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                 };
 
                 let req_method_string = match req_method_str {
-                    Ok(s) => s.to_string(),
+                    Ok(s) => s.to_string().to_ascii_lowercase(),
                     _ => {
                         debug!("Could not parse \"X-Original-URI\" header value.");
                         return respond_success(false);

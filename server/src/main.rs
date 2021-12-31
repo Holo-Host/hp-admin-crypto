@@ -24,6 +24,8 @@ lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName =
         HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
+    static ref X_ORIGINAL_METHOD: HeaderName =
+        HeaderName::from_lowercase(b"x-original-method").unwrap();
     static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
 }
 
@@ -72,8 +74,33 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                     }
                 };
 
+                let req_method_str = match parts.headers.get(&*X_ORIGINAL_METHOD) {
+                    Some(s) => s.to_str(),
+                    None => {
+                        debug!("Received request with no \"X-Original-METHOD\" header.");
+                        return respond_success(false);
+                    }
+                };
+
+                let req_method_string = match req_method_str {
+                    Ok(s) => s.to_string(),
+                    _ => {
+                        debug!("Could not parse \"X-Original-URI\" header value.");
+                        return respond_success(false);
+                    }
+                };
+
+                debug!(
+                    "Processing signature verification request for METHOD {}",
+                    req_method_string
+                );
+
+                debug!("parts: {:?}", parts);
+
+                debug!("parts.method.to_string(): {:?}", parts.method.to_string());
+
                 let payload = Payload {
-                    method: parts.method.to_string().to_ascii_lowercase(),
+                    method: req_method_string,
                     request: req_uri_string,
                     body: body,
                 };

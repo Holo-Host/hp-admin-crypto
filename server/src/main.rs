@@ -77,7 +77,7 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
                     request: req_uri_string,
                     body: body,
                 };
-
+                debug!("Payload: {:?}", payload);
                 let public_key = match read_hp_pubkey() {
                     Ok(pk) => pk,
                     Err(e) => {

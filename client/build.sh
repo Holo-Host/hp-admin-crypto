@@ -7,6 +7,9 @@ PACKAGE_NAME=$(basename $(jq -r .name pkg/package.json | tr - _))
 
 cp pkg-nodejs/${PACKAGE_NAME}.js pkg/${PACKAGE_NAME}_node.js
 
+sed "s/hp_admin_keypair.js')/hp_admin_keypair_node.js')/" \
+  pkg-nodejs/ .js > pkg/hp_admin_keypair_bg.js
+
 PACKAGE_JQ_FILTER=$(cat <<END
 .files += ["${PACKAGE_NAME}_bg.js"] | .main = "${PACKAGE_NAME}_node.js"
 END

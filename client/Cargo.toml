@@ -1,6 +1,6 @@
 [package]
 name = "hp-admin-keypair"
-version = "0.1.2"
+version = "0.2.6"
 description = "Client side package for signing API calls to HPOS Admin"
 authors = ["PJ <pj@imagine-nyc.com>"]
 license = "MIT"
@@ -15,8 +15,8 @@ failure = "0.1.5"
 js-sys = "0.3.30"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.39"
-wasm-bindgen = { version = "0.2.51", features = ["serde-serialize"] }
-wasm-bindgen-cli = "0.2.51"
+wasm-bindgen = { version = "0.2.78", features = ["serde-serialize"] }
+wasm-bindgen-cli = "0.2.78"
 
 [dependencies.base36]
 git = "https://github.com/transumption-unstable/base36"
@@ -27,7 +27,7 @@ git = "https://github.com/Holo-Host/hpos-config"
 rev = "bac6758c452974c13f08edb046b816b48bb317c7"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.2.50"
+wasm-bindgen-test = "0.3.28"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

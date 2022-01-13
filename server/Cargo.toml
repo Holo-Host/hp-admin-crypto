@@ -1,6 +1,6 @@
 [package]
 name = "hp-admin-crypto-server"
-version = "0.1.0"
+version = "0.2.0"
 description = "Service for checking authorizatoin of API calls from HP Admin UI"
 authors = ["PJ <pj@imagine-nyc.com>"]
 edition = "2018"

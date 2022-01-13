@@ -9,7 +9,7 @@
   },
   "author": "PJ Klimek <pj@imagine-nyc.com>",
   "dependencies": {
-    "@holo-host/hp-admin-keypair": "^0.1.2"
+    "@holo-host/hp-admin-keypair": "^0.2.3"
   },
   "devDependencies": {
     "webpack": "^4.29.3",

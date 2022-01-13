@@ -2,3 +2,4 @@ result
 target/
 pkg/
 node_modules/
+test-js.out

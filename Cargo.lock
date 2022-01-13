@@ -675,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "hp-admin-keypair"
-version = "0.2.2"
+version = "0.2.6"
 dependencies = [
  "base36",
  "base64 0.13.0",

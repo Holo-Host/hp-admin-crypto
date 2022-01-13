@@ -10,7 +10,7 @@ cp pkg-nodejs/${PACKAGE_NAME}_bg.wasm pkg/${PACKAGE_NAME}.wasm
 cp pkg-nodejs/${PACKAGE_NAME}_bg.wasm.d.ts pkg/${PACKAGE_NAME}.wasm.d.ts
 
 PACKAGE_JQ_FILTER=$(cat <<END
-.main = "${PACKAGE_NAME}_node.js"
+.files += ["${PACKAGE_NAME}_bg.wasm.d.ts", "${PACKAGE_NAME}.wasm"] | .main = "${PACKAGE_NAME}_node.js"
 END
 )
 

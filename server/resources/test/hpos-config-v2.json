@@ -1,6 +1,7 @@
 {
   "v2": {
-    "encrypted_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADKZmCXinJ59rt+scbD89QWVlfbmEa7BTVPDpFI6iGg/f5EkOQzgAK+uhLjoobpqta2c5TBrJ25ltkMkE2J9zVW",
+    "device_bundle": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADKZmCXinJ59rt+scbD89QWVlfbmEa7BTVPDpFI6iGg/f5EkOQzgAK+uhLjoobpqta2c5TBrJ25ltkMkE2J9zVW",
+    "derivation_path": "0",
     "registration_code": "7-determine-flatfoot",
     "settings": {
       "admin": {

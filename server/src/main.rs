@@ -227,7 +227,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
             return Err("Can't read HP Admin PublicKey from file.")?;
         }
     };
-    let _ = serde_json::from_slice(&contents)?;
+
     // Parse content
     let hpos_config: Config = match serde_json::from_slice(&contents) {
         Ok(s) => s,

@@ -5,9 +5,9 @@ use futures::{
     Future, Stream,
 };
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
-use hyper::{service, Body, Request, Response, Server, StatusCode};
+use hyper::{service, Body, Request, Response, Server, StatusCode, Uri};
 
-use ed25519_dalek::ed25519::signature::Signature;
+use ed25519_dalek::ed25519::Signature;
 use ed25519_dalek::PublicKey;
 use ed25519_dalek::Verifier;
 use hpos_config_core::config::Config;
@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::sync::Mutex;
 use std::{env, fs};
+use url::form_urlencoded;
 
 use log::{debug, error, info};
 
@@ -26,10 +27,11 @@ lazy_static! {
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
     static ref X_ORIGINAL_METHOD: HeaderName =
         HeaderName::from_lowercase(b"x-original-method").unwrap();
+    static ref X_ORIGINAL_BODY: HeaderName = HeaderName::from_lowercase(b"x-body-hash").unwrap();
     static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 struct Payload {
     method: String,
     request: String,
@@ -43,85 +45,20 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     match parts.uri.path() {
         "/auth/" => {
             let entire_body = body.concat2();
-            let res = entire_body.map(|body| {
-                // Extract X-Original-URI header value, 401 when problems occur
-                let req_uri_str = match parts.headers.get(&*X_ORIGINAL_URI) {
-                    Some(s) => s.to_str(),
-                    None => {
-                        debug!("Received request with no \"X-Original-URI\" header.");
-                        return respond_success(false);
+
+            let res = entire_body.map(|_| {
+                if let Ok(public_key) = read_hp_pubkey() {
+                    if let Ok(payload) = create_payload(&parts.headers) {
+                        if let Ok(signature) = signature_from_headers(parts.headers) {
+                            if let Ok(is_verified) = verify_request(payload, signature, public_key)
+                            {
+                                return respond_success(is_verified);
+                            }
+                        }
                     }
-                };
+                }
 
-                let req_uri_string = match req_uri_str {
-                    Ok(s) => s.to_string(),
-                    _ => {
-                        debug!("Could not parse \"X-Original-URI\" header value.");
-                        return respond_success(false);
-                    }
-                };
-
-                debug!(
-                    "Processing signature verification request for URI {}",
-                    req_uri_string
-                );
-
-                let body = match String::from_utf8(body.to_vec()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        debug!("Error parsing request body: {}", e);
-                        return respond_success(false);
-                    }
-                };
-
-                let req_method_str = match parts.headers.get(&*X_ORIGINAL_METHOD) {
-                    Some(s) => s.to_str(),
-                    None => {
-                        debug!("Received request with no \"X-Original-METHOD\" header.");
-                        return respond_success(false);
-                    }
-                };
-
-                let req_method_string = match req_method_str {
-                    Ok(s) => s.to_string().to_ascii_lowercase(),
-                    _ => {
-                        debug!("Could not parse \"X-Original-URI\" header value.");
-                        return respond_success(false);
-                    }
-                };
-
-                debug!(
-                    "Processing signature verification request for METHOD {}",
-                    req_method_string
-                );
-
-                debug!("parts: {:?}", parts);
-
-                debug!("parts.method.to_string(): {:?}", parts.method.to_string());
-
-                let payload = Payload {
-                    method: req_method_string,
-                    request: req_uri_string,
-                    body: body,
-                };
-                debug!("Payload: {:?}", payload);
-                let public_key = match read_hp_pubkey() {
-                    Ok(pk) => pk,
-                    Err(e) => {
-                        debug!("{}", e);
-                        return respond_success(false);
-                    }
-                };
-
-                let is_verified = match verify_request(payload, parts.headers, public_key) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        debug!("Error while verifying signature: {}", e);
-                        return respond_success(false);
-                    }
-                };
-
-                respond_success(is_verified)
+                respond_success(false)
             });
 
             Either::A(res)
@@ -133,28 +70,121 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn verify_request(
-    payload: Payload,
-    headers: HeaderMap<HeaderValue>,
-    public_key: PublicKey,
-) -> Result<bool, Box<dyn Error>> {
-    let payload_vec = serde_json::to_vec(&payload)?;
+fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
+    if let Some(result) = headers.get(&*X_ORIGINAL_URI) {
+        if let Ok(uri_str) = result.to_str() {
+            let uri = Uri::builder()
+                .scheme("https")
+                .authority("abba.pl")
+                .path_and_query(uri_str)
+                .build()
+                .unwrap();
 
-    debug!("Using pub key: {:?}", public_key);
+            return Some(uri);
+        }
+    }
 
-    if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
-        if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD)
-        {
-            if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
-                if public_key.verify(&payload_vec, &signature_bytes).is_ok() {
-                    debug!("Signature verified successfully");
-                    return Ok(true);
+    return None;
+}
+
+fn path_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    if let Some(uri) = uri_from_headers(headers) {
+        return Ok(uri.path().to_string());
+    }
+
+    debug!("Received request with no path in \"X-Original-URI\" header.");
+    return Err("")?;
+}
+
+fn method_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    match headers.get(&*X_ORIGINAL_METHOD) {
+        Some(s) => return Ok(s.to_str()?.to_string().to_ascii_lowercase()),
+        None => {
+            debug!("Received request with no \"X-Original-Method\" header.");
+            return Err("")?;
+        }
+    };
+}
+
+fn body_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
+    match headers.get(&*X_ORIGINAL_BODY) {
+        Some(s) => return Ok(s.to_str()?.to_string()),
+        None => {
+            debug!("Received request with no \"X-Body-Hash\" header, using empty body.");
+            return Ok("".to_string());
+        }
+    };
+}
+
+fn create_payload(headers: &HeaderMap<HeaderValue>) -> Result<Payload, Box<dyn Error>> {
+    Ok(Payload {
+        method: method_from_headers(headers)?,
+        request: path_from_headers(headers)?,
+        body: body_from_headers(headers)?,
+    })
+}
+
+fn signature_from_headers(headers: HeaderMap<HeaderValue>) -> Result<Signature, Box<dyn Error>> {
+    if let Some(signature_base64) = extract_base64_signature(headers) {
+        debug!("Received signature '{}'", signature_base64);
+        return parse_signature(signature_base64);
+    }
+
+    debug!("Received request with no signature");
+    Err("No signature 'X-Hpos-Admin-Signature' found in headers nor query string")?
+}
+
+fn extract_base64_signature(headers: HeaderMap<HeaderValue>) -> Option<String> {
+    if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+        if let Ok(value_str) = value.to_str() {
+            return Some(value_str.to_string());
+        }
+    }
+
+    if let Some(uri) = uri_from_headers(&headers) {
+        if let Some(query_str) = uri.query() {
+            let args = form_urlencoded::parse(query_str.as_bytes()).into_owned();
+
+            for arg in args {
+                let (key, value) = arg;
+                if key.to_ascii_lowercase() == "x-hpos-admin-signature".to_string() {
+                    return Some(value);
                 }
             }
         }
     }
 
-    debug!("Signature verified unsuccessfully");
+    None
+}
+
+fn parse_signature(signature_base64: String) -> Result<Signature, Box<dyn Error>> {
+    if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
+        if let Ok(signature) = Signature::from_bytes(&signature_vec) {
+            return Ok(signature);
+        }
+    };
+
+    Err("Signature is not parsable")?
+}
+
+fn verify_request(
+    payload: Payload,
+    signature: Signature,
+    public_key: PublicKey,
+) -> Result<bool, Box<dyn Error>> {
+    debug!(
+        "Processing signature verification request for Method: {}, request: {}, body: {}",
+        payload.method, payload.request, payload.body
+    );
+
+    let payload_vec = serde_json::to_vec(&payload)?;
+
+    if public_key.verify(&payload_vec, &signature).is_ok() {
+        debug!("Signature verification passed");
+        return Ok(true);
+    }
+
+    debug!("Signature verification failed");
     return Ok(false);
 }
 
@@ -197,7 +227,7 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
             return Err("Can't read HP Admin PublicKey from file.")?;
         }
     };
-
+    let _ = serde_json::from_slice(&contents)?;
     // Parse content
     let hpos_config: Config = match serde_json::from_slice(&contents) {
         Ok(s) => s,

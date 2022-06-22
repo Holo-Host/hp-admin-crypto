@@ -1,7 +1,6 @@
 use super::*;
 use base36;
-use ed25519_dalek::Keypair;
-use ed25519_dalek::Signer;
+use ed25519_dalek::{Keypair, Signer};
 use hpos_config_core::config::admin_keypair_from;
 
 const HC_PUBLIC_KEY: &str = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";
@@ -53,8 +52,11 @@ fn verify_signature_match_client() {
     assert_eq!(signature_base64, expected_signature);
 }
 
-/*#[test]
+#[test]
 fn verify_request_smoke() {
+    let path = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
+    env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
     let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
 
@@ -78,11 +80,50 @@ fn verify_request_smoke() {
     let mut headers = HeaderMap::new();
     headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
 
+    let signature = signature_from_headers(headers).unwrap();
+
     assert_eq!(
-        verify_request(payload, headers, read_hp_pubkey().unwrap()).unwrap(),
+        verify_request(payload, signature, read_hp_pubkey().unwrap()).unwrap(),
         true
     )
-}*/
+}
+
+#[test]
+fn crete_payload_no_body_header() {
+    let mut headers = HeaderMap::new();
+    let expected_payload = Payload {
+        method: "get".to_string(),
+        request: "/api/v1/config".to_string(),
+        body: "".to_string(),
+    };
+    headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
+    headers.insert(
+        "x-original-method",
+        expected_payload.method.parse().unwrap(),
+    );
+
+    let payload = create_payload(&headers).unwrap();
+    assert_eq!(payload, expected_payload);
+}
+
+#[test]
+fn crete_payload_check_body() {
+    let mut headers = HeaderMap::new();
+    let expected_payload = Payload {
+        method: "get".to_string(),
+        request: "/api/v1/config".to_string(),
+        body: "this_is_body".to_string(),
+    };
+    headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
+    headers.insert(
+        "x-original-method",
+        expected_payload.method.parse().unwrap(),
+    );
+    headers.insert("x-body-hash", expected_payload.body.parse().unwrap());
+
+    let payload = create_payload(&headers).unwrap();
+    assert_eq!(payload, expected_payload);
+}
 
 #[test]
 fn verify_request_fail() {
@@ -94,23 +135,49 @@ fn verify_request_fail() {
     // Now lets sign some payload
     let payload = Payload {
         method: "get".to_string(),
+        request: "/api/v1/status".to_string(),
+        body: "".to_string(),
+    };
+
+    let wrong_payload = Payload {
+        method: "put".to_string(),
         request: "/api/v1/config".to_string(),
         body: "".to_string(),
     };
 
-    let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
+    let wrong_signature = admin_keypair.sign(&serde_json::to_vec(&wrong_payload).unwrap());
     let mut signature_base64 = String::new();
     base64::encode_config_buf(
-        signature.to_bytes().as_ref(),
+        wrong_signature.to_bytes().as_ref(),
         base64::STANDARD_NO_PAD,
         &mut signature_base64,
     );
 
-    let mut headers = HeaderMap::new();
-    headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
-
     assert_eq!(
-        verify_request(payload, headers, admin_keypair.public).unwrap(),
+        verify_request(payload, wrong_signature, admin_keypair.public).unwrap(),
         false
     )
+}
+
+#[test]
+fn extract_correct_signature_1() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-hpos-admin-signature", "Right_signature".parse().unwrap());
+    headers.insert("x-original-uri", "/foo?x-hpos-admin-signature=Wrong_signature".parse().unwrap());
+
+    match extract_base64_signature(headers) {
+        Some(signature) => assert_eq!(signature, "Right_signature"),
+        None => panic!("Signature extraction failed"),
+    }
+}
+
+#[test]
+fn extract_correct_signature_2() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-original-uri", "/foo?x-hpos-admin-signature=Right_signature".parse().unwrap());
+
+    match extract_base64_signature(headers) {
+        Some(signature) => assert_eq!(signature, "Right_signature"),
+        None => panic!("Signature extraction failed"),
+    }
 }

@@ -15,7 +15,7 @@ use hpos_config_core::config::Config;
 use lazy_static::lazy_static;
 use std::error::Error;
 use std::sync::Mutex;
-use std::time::SystemTime;
+use std::time::{SystemTime, Duration};
 use std::{env, fs};
 use url::form_urlencoded;
 
@@ -28,12 +28,15 @@ lazy_static! {
     static ref X_HPOS_AUTH_TOKEN: HeaderName =
         HeaderName::from_lowercase(b"x-hpos-auth-token").unwrap();
     static ref X_ORIGINAL_BODY: HeaderName = HeaderName::from_lowercase(b"x-body-hash").unwrap();
-    static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
+    static ref STORED_AUTH_TOKEN: Mutex<Option<AuthToken>> = Mutex::new(None);
 }
 
+const TOKEN_EXPIERY_DURATION: Duration = Duration::from_secs(60*60*24*30); // 30 days
+
+
 struct AuthToken {
-    value: &'static str,
-    expires: SystemTime,
+    value: String,
+    created: SystemTime,
 }
 
 // Create response based on the request parameters
@@ -44,17 +47,19 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
         "/auth/" => {
             let entire_body = body.concat2();
 
-            let res = entire_body.map(|_| {
+            let res = entire_body.map(move |_| {
                 if let Some(auth_token) = token_from_headers_or_query(&parts.headers) {
-                    if let Some(signature) = signature_from_headers(parts.headers) {
+                    if let Some(signature) = signature_from_headers(&parts.headers) {
                         if let Ok(public_key) = read_hp_pubkey() {
-                            if verify_signature(auth_token, signature, public_key) {
-                                // save token in memory with current set time
-                                return respond_success(true);
+                            if verify_signature(&auth_token, signature, public_key) {
+                                if let Ok(_) = save_auth_token(auth_token) {
+                                    debug!("Signature verified succesfully, saved new STORED_AUTH_TOKEN");
+                                    return respond_success(true);
+                                }
                             }
                         }
                     } else {
-                        // Return respond_success(verify_token())
+                        return respond_success(verify_token(&auth_token))
                     }
                 }
 
@@ -87,10 +92,10 @@ fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
     return None;
 }
 
-fn token_from_headers_or_query(headers: HeaderMap<HeaderValue>) -> Option<&str> {
+fn token_from_headers_or_query(headers: &HeaderMap<HeaderValue>) -> Option<String> {
     if let Some(value) = headers.get(&*X_HPOS_AUTH_TOKEN) {
         if let Ok(value_str) = value.to_str() {
-            return Some(value_str);
+            return Some(value_str.to_owned());
         }
     }
 
@@ -111,7 +116,7 @@ fn token_from_headers_or_query(headers: HeaderMap<HeaderValue>) -> Option<&str> 
     None
 }
 
-fn signature_from_headers(headers: HeaderMap<HeaderValue>) -> Option<Signature> {
+fn signature_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Signature> {
     if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         if let Ok(signature_base64) = value.to_str() {
             debug!("Received signature '{}'", signature_base64);
@@ -140,9 +145,9 @@ fn verify_signature(token: &str, signature: Signature, public_key: PublicKey) ->
         token
     );
 
-    if public_key.verify(token, &signature).is_ok() {
+    if public_key.verify(token.as_bytes(), &signature).is_ok() {
         debug!("Signature verification passed");
-        true
+        return true
     }
 
     debug!("Signature verification failed");
@@ -164,12 +169,6 @@ fn respond_success(is_verified: bool) -> hyper::Response<Body> {
 }
 
 fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
-    // Read cached value from HP_PUBLIC_KEY
-    if let Some(pub_key) = *HP_PUBLIC_KEY.lock()? {
-        debug!("Returning HP_PUBLIC_KEY from cache");
-        return Ok(pub_key);
-    }
-
     info!("Reading HP Admin Public Key from file.");
 
     let hpos_config_path = match env::var("HPOS_CONFIG_PATH") {
@@ -198,11 +197,38 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
         }
     };
 
-    // Update cached value in HP_PUBLIC_KEY
-    let pub_key = hpos_config.admin_public_key();
-    *HP_PUBLIC_KEY.lock()? = Some(pub_key);
+    Ok(hpos_config.admin_public_key())
+}
 
-    Ok(pub_key)
+fn verify_token(received_token_value: &str) -> bool {
+    // Read cached value from STORED_AUTH_TOKEN
+    if let Ok(maybe_auth_token) = STORED_AUTH_TOKEN.lock() {
+        if let Some(auth_token) = &*maybe_auth_token {
+            debug!("Found STORED_AUTH_TOKEN in cache");
+            // Check token expiery
+            if let Ok(token_age) = auth_token.created.elapsed() {
+                if token_age < TOKEN_EXPIERY_DURATION {
+                    if auth_token.value == received_token_value {
+                        // update token expiery in memory with current time
+                        let _= save_auth_token(auth_token.value.clone());
+                        debug!("received token matches STORED_AUTH_TOKEN");
+                        return true;
+                    }
+                } else {
+                    debug!("STORED_AUTH_TOKEN in cache expired");
+                }
+            }
+        }
+    }
+    false
+}
+
+fn save_auth_token(value: String) -> Result<(), Box<dyn Error>> {
+    *STORED_AUTH_TOKEN.lock()? = Some(AuthToken{
+        value: value,
+        created: SystemTime::now(),
+    });
+    Ok(())
 }
 
 fn main() {

@@ -163,7 +163,12 @@ fn verify_request_fail() {
 fn extract_correct_signature_1() {
     let mut headers = HeaderMap::new();
     headers.insert("x-hpos-admin-signature", "Right_signature".parse().unwrap());
-    headers.insert("x-original-uri", "/foo?x-hpos-admin-signature=Wrong_signature".parse().unwrap());
+    headers.insert(
+        "x-original-uri",
+        "/foo?x-hpos-admin-signature=Wrong_signature"
+            .parse()
+            .unwrap(),
+    );
 
     match extract_base64_signature(headers) {
         Some(signature) => assert_eq!(signature, "Right_signature"),
@@ -174,7 +179,12 @@ fn extract_correct_signature_1() {
 #[test]
 fn extract_correct_signature_2() {
     let mut headers = HeaderMap::new();
-    headers.insert("x-original-uri", "/foo?x-hpos-admin-signature=Right_signature".parse().unwrap());
+    headers.insert(
+        "x-original-uri",
+        "/foo?x-hpos-admin-signature=Right_signature"
+            .parse()
+            .unwrap(),
+    );
 
     match extract_base64_signature(headers) {
         Some(signature) => assert_eq!(signature, "Right_signature"),

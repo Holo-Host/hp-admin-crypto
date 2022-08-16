@@ -13,9 +13,9 @@ use ed25519_dalek::Verifier;
 use hpos_config_core::config::Config;
 
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::sync::Mutex;
+use std::time::SystemTime;
 use std::{env, fs};
 use url::form_urlencoded;
 
@@ -25,17 +25,15 @@ lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName =
         HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
-    static ref X_ORIGINAL_METHOD: HeaderName =
-        HeaderName::from_lowercase(b"x-original-method").unwrap();
+    static ref X_HPOS_AUTH_TOKEN: HeaderName =
+        HeaderName::from_lowercase(b"x-hpos-auth-token").unwrap();
     static ref X_ORIGINAL_BODY: HeaderName = HeaderName::from_lowercase(b"x-body-hash").unwrap();
     static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-struct Payload {
-    method: String,
-    request: String,
-    body: String,
+struct AuthToken {
+    value: &'static str,
+    expires: SystemTime,
 }
 
 // Create response based on the request parameters
@@ -47,14 +45,16 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
             let entire_body = body.concat2();
 
             let res = entire_body.map(|_| {
-                if let Ok(public_key) = read_hp_pubkey() {
-                    if let Ok(payload) = create_payload(&parts.headers) {
-                        if let Ok(signature) = signature_from_headers(parts.headers) {
-                            if let Ok(is_verified) = verify_request(payload, signature, public_key)
-                            {
-                                return respond_success(is_verified);
+                if let Some(auth_token) = token_from_headers_or_query(&parts.headers) {
+                    if let Some(signature) = signature_from_headers(parts.headers) {
+                        if let Ok(public_key) = read_hp_pubkey() {
+                            if verify_signature(auth_token, signature, public_key) {
+                                // save token in memory with current set time
+                                return respond_success(true);
                             }
                         }
+                    } else {
+                        // Return respond_success(verify_token())
                     }
                 }
 
@@ -87,57 +87,10 @@ fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
     return None;
 }
 
-fn path_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
-    if let Some(uri) = uri_from_headers(headers) {
-        return Ok(uri.path().to_string());
-    }
-
-    debug!("Received request with no path in \"X-Original-URI\" header.");
-    return Err("")?;
-}
-
-fn method_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
-    match headers.get(&*X_ORIGINAL_METHOD) {
-        Some(s) => return Ok(s.to_str()?.to_string().to_ascii_lowercase()),
-        None => {
-            debug!("Received request with no \"X-Original-Method\" header.");
-            return Err("")?;
-        }
-    };
-}
-
-fn body_from_headers(headers: &HeaderMap<HeaderValue>) -> Result<String, Box<dyn Error>> {
-    match headers.get(&*X_ORIGINAL_BODY) {
-        Some(s) => return Ok(s.to_str()?.to_string()),
-        None => {
-            debug!("Received request with no \"X-Body-Hash\" header, using empty body.");
-            return Ok("".to_string());
-        }
-    };
-}
-
-fn create_payload(headers: &HeaderMap<HeaderValue>) -> Result<Payload, Box<dyn Error>> {
-    Ok(Payload {
-        method: method_from_headers(headers)?,
-        request: path_from_headers(headers)?,
-        body: body_from_headers(headers)?,
-    })
-}
-
-fn signature_from_headers(headers: HeaderMap<HeaderValue>) -> Result<Signature, Box<dyn Error>> {
-    if let Some(signature_base64) = extract_base64_signature(headers) {
-        debug!("Received signature '{}'", signature_base64);
-        return parse_signature(signature_base64);
-    }
-
-    debug!("Received request with no signature");
-    Err("No signature 'X-Hpos-Admin-Signature' found in headers nor query string")?
-}
-
-fn extract_base64_signature(headers: HeaderMap<HeaderValue>) -> Option<String> {
-    if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+fn token_from_headers_or_query(headers: HeaderMap<HeaderValue>) -> Option<&str> {
+    if let Some(value) = headers.get(&*X_HPOS_AUTH_TOKEN) {
         if let Ok(value_str) = value.to_str() {
-            return Some(value_str.to_string());
+            return Some(value_str);
         }
     }
 
@@ -147,45 +100,53 @@ fn extract_base64_signature(headers: HeaderMap<HeaderValue>) -> Option<String> {
 
             for arg in args {
                 let (key, value) = arg;
-                if key.to_ascii_lowercase() == "x-hpos-admin-signature".to_string() {
+                if key.to_ascii_lowercase() == "x-hpos-auth-token".to_string() {
                     return Some(value);
                 }
             }
         }
     }
 
+    error!("Received request with no auth token in headers nor query string");
     None
 }
 
-fn parse_signature(signature_base64: String) -> Result<Signature, Box<dyn Error>> {
-    if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD) {
+fn signature_from_headers(headers: HeaderMap<HeaderValue>) -> Option<Signature> {
+    if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+        if let Ok(signature_base64) = value.to_str() {
+            debug!("Received signature '{}'", signature_base64);
+            return parse_signature(signature_base64);
+        }
+    }
+
+    debug!("Received request with no signature in headers nor query string");
+    None
+}
+
+fn parse_signature(signature_base64: &str) -> Option<Signature> {
+    if let Ok(signature_vec) = base64::decode_config(signature_base64, base64::STANDARD_NO_PAD) {
         if let Ok(signature) = Signature::from_bytes(&signature_vec) {
-            return Ok(signature);
+            return Some(signature);
         }
     };
 
-    Err("Signature is not parsable")?
+    debug!("Signature is not parsable");
+    None
 }
 
-fn verify_request(
-    payload: Payload,
-    signature: Signature,
-    public_key: PublicKey,
-) -> Result<bool, Box<dyn Error>> {
+fn verify_signature(token: &str, signature: Signature, public_key: PublicKey) -> bool {
     debug!(
-        "Processing signature verification request for Method: {}, request: {}, body: {}",
-        payload.method, payload.request, payload.body
+        "Processing signature verification request for Auth Token: {}",
+        token
     );
 
-    let payload_vec = serde_json::to_vec(&payload)?;
-
-    if public_key.verify(&payload_vec, &signature).is_ok() {
+    if public_key.verify(token, &signature).is_ok() {
         debug!("Signature verification passed");
-        return Ok(true);
+        true
     }
 
     debug!("Signature verification failed");
-    return Ok(false);
+    false
 }
 
 fn respond_success(is_verified: bool) -> hyper::Response<Body> {

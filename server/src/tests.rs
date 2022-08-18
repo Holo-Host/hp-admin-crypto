@@ -48,6 +48,54 @@ fn verify_signature_match_client() {
     assert_eq!(signature_base64, expected_signature);
 }
 
+#[test]
+fn extract_signature_from_headers() {
+    let expected_signature: Option<Signature> = parse_signature("Right_signature");
+    let mut headers = HeaderMap::new();
+    headers.insert("x-hpos-admin-signature", "Right_signature".parse().unwrap());
+    headers.insert(
+        "x-original-uri",
+        "/foo?x-hpos-admin-signature=Wrong_signature"
+            .parse()
+            .unwrap(),
+    );
+
+    assert_eq!(signature_from_headers(&headers), expected_signature);
+}
+
+#[test]
+fn extract_token_from_headers() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-hpos-auth-token", "Right_token".parse().unwrap());
+    headers.insert(
+        "x-original-uri",
+        "/foo?x-hpos-auth-token=Wrong_token"
+            .parse()
+            .unwrap(),
+    );
+
+    match token_from_headers_or_query(&headers) {
+        Some(token) => assert_eq!(token, "Right_token"),
+        None => panic!("Token extraction failed"),
+    }
+}
+
+#[test]
+fn extract_token_from_query() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-original-uri",
+        "/foo?x-hpos-auth-token=Right_token"
+            .parse()
+            .unwrap(),
+    );
+
+    match token_from_headers_or_query(&headers) {
+        Some(token) => assert_eq!(token, "Right_token"),
+        None => panic!("Token extraction failed"),
+    }
+}
+
 // #[test]
 // fn verify_request_smoke() {
 //     let path = env::var("CARGO_MANIFEST_DIR").unwrap();
@@ -84,42 +132,7 @@ fn verify_signature_match_client() {
 //     )
 // }
 
-// #[test]
-// fn crete_payload_no_body_header() {
-//     let mut headers = HeaderMap::new();
-//     let expected_payload = Payload {
-//         method: "get".to_string(),
-//         request: "/api/v1/config".to_string(),
-//         body: "".to_string(),
-//     };
-//     headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
-//     headers.insert(
-//         "x-original-method",
-//         expected_payload.method.parse().unwrap(),
-//     );
 
-//     let payload = create_payload(&headers).unwrap();
-//     assert_eq!(payload, expected_payload);
-// }
-
-// #[test]
-// fn crete_payload_check_body() {
-//     let mut headers = HeaderMap::new();
-//     let expected_payload = Payload {
-//         method: "get".to_string(),
-//         request: "/api/v1/config".to_string(),
-//         body: "this_is_body".to_string(),
-//     };
-//     headers.insert("x-original-uri", expected_payload.request.parse().unwrap());
-//     headers.insert(
-//         "x-original-method",
-//         expected_payload.method.parse().unwrap(),
-//     );
-//     headers.insert("x-body-hash", expected_payload.body.parse().unwrap());
-
-//     let payload = create_payload(&headers).unwrap();
-//     assert_eq!(payload, expected_payload);
-// }
 
 // #[test]
 // fn verify_request_fail() {
@@ -153,37 +166,4 @@ fn verify_signature_match_client() {
 //         verify_request(payload, wrong_signature, admin_keypair.public).unwrap(),
 //         false
 //     )
-// }
-
-// #[test]
-// fn extract_correct_signature_1() {
-//     let mut headers = HeaderMap::new();
-//     headers.insert("x-hpos-admin-signature", "Right_signature".parse().unwrap());
-//     headers.insert(
-//         "x-original-uri",
-//         "/foo?x-hpos-admin-signature=Wrong_signature"
-//             .parse()
-//             .unwrap(),
-//     );
-
-//     match extract_base64_signature(headers) {
-//         Some(signature) => assert_eq!(signature, "Right_signature"),
-//         None => panic!("Signature extraction failed"),
-//     }
-// }
-
-// #[test]
-// fn extract_correct_signature_2() {
-//     let mut headers = HeaderMap::new();
-//     headers.insert(
-//         "x-original-uri",
-//         "/foo?x-hpos-admin-signature=Right_signature"
-//             .parse()
-//             .unwrap(),
-//     );
-
-//     match extract_base64_signature(headers) {
-//         Some(signature) => assert_eq!(signature, "Right_signature"),
-//         None => panic!("Signature extraction failed"),
-//     }
 // }

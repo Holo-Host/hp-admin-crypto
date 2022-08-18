@@ -1,6 +1,6 @@
 {
   "name": "@holo-host/hp-admin-keypair",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Client side package for signing API calls to HPOS Admin",
   "main": "index.js",
   "directories": {

@@ -6,6 +6,6 @@ const PASSWORD = "abbaabba";
 
 let kp = new HpAdminKeypair(HC_PUBLIC_KEY, EMAIL, PASSWORD);
 
-const payload = "string to sign"
+const payload = "Some auth token"
 
 console.log(kp.sign(payload));

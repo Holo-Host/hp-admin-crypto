@@ -21,5 +21,3 @@ const payload = "String to sign";
 
 console.log(kp.sign(payload));
 ```
-
-

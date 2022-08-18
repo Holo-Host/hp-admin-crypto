@@ -48,18 +48,18 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
             let entire_body = body.concat2();
 
             let res = entire_body.map(move |_| {
-                if let Some(auth_token) = token_from_headers_or_query(&parts.headers) {
+                if let Some(auth_token_value) = token_from_headers_or_query(&parts.headers) {
                     if let Some(signature) = signature_from_headers(&parts.headers) {
                         if let Ok(public_key) = read_hp_pubkey() {
-                            if verify_signature(&auth_token, signature, public_key) {
-                                if let Ok(_) = save_auth_token(auth_token) {
+                            if verify_signature(&auth_token_value, signature, public_key) {
+                                if let Ok(_) = save_auth_token(auth_token_value) {
                                     debug!("Signature verified succesfully, saved new STORED_AUTH_TOKEN");
                                     return respond_success(true);
                                 }
                             }
                         }
                     } else {
-                        return respond_success(verify_token(&auth_token))
+                        return respond_success(verify_token(&auth_token_value))
                     }
                 }
 

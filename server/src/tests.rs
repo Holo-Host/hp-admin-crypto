@@ -134,6 +134,20 @@ fn verify_request_smoke() {
     let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
     env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
+    // Create Hyper request with token only - token should not be in memory, yet
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Some auth token")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::UNAUTHORIZED);
+
     // Create Hyper request with new token
     let request = Request::builder()
         .method("GET")

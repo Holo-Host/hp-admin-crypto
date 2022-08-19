@@ -63,7 +63,7 @@ fn create_response(headers: &HeaderMap<HeaderValue>) -> Response<Body> {
             if let Ok(public_key) = read_hp_pubkey() {
                 if verify_signature(&auth_token_value, signature, public_key) {
                     if let Ok(_) = save_auth_token(auth_token_value) {
-                        debug!("Signature verified succesfully, saved new STORED_AUTH_TOKEN");
+                        info!("Saved new STORED_AUTH_TOKEN");
                         return respond_success(true);
                     }
                 }
@@ -96,6 +96,7 @@ fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
 fn token_from_headers_or_query(headers: &HeaderMap<HeaderValue>) -> Option<String> {
     if let Some(value) = headers.get(&*X_HPOS_AUTH_TOKEN) {
         if let Ok(value_str) = value.to_str() {
+            debug!("Received token in headers");
             return Some(value_str.to_owned());
         }
     }
@@ -107,6 +108,7 @@ fn token_from_headers_or_query(headers: &HeaderMap<HeaderValue>) -> Option<Strin
             for arg in args {
                 let (key, value) = arg;
                 if key.to_ascii_lowercase() == "x-hpos-auth-token".to_string() {
+                    debug!("Received token in query string");
                     return Some(value);
                 }
             }
@@ -120,12 +122,11 @@ fn token_from_headers_or_query(headers: &HeaderMap<HeaderValue>) -> Option<Strin
 fn signature_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Signature> {
     if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
         if let Ok(signature_base64) = value.to_str() {
-            debug!("Received signature '{}'", signature_base64);
+            info!("Received token signing signature in headers");
             return parse_signature(signature_base64);
         }
     }
 
-    debug!("Received request with no signature in headers nor query string");
     None
 }
 
@@ -146,9 +147,11 @@ fn verify_signature(token: &str, signature: Signature, public_key: PublicKey) ->
         token
     );
 
-    if public_key.verify(token.as_bytes(), &signature).is_ok() {
-        debug!("Signature verification passed");
-        return true;
+    if let Ok(token_vec) = serde_json::to_vec(&token) {
+        if public_key.verify(&token_vec, &signature).is_ok() {
+            debug!("Signature verification passed");
+            return true;
+        }
     }
 
     debug!("Signature verification failed");
@@ -170,7 +173,7 @@ fn respond_success(is_verified: bool) -> hyper::Response<Body> {
 }
 
 fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
-    info!("Reading HP Admin Public Key from file.");
+    debug!("Reading HP Admin Public Key from file.");
 
     let hpos_config_path = match env::var("HPOS_CONFIG_PATH") {
         Ok(s) => s,
@@ -203,17 +206,23 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
 
 fn verify_token(received_token_value: &str) -> bool {
     // Read cached value from STORED_AUTH_TOKEN
-    if let Ok(maybe_auth_token) = STORED_AUTH_TOKEN.lock() {
+    if let Ok(mut maybe_auth_token) = STORED_AUTH_TOKEN.lock() {
         if let Some(auth_token) = &*maybe_auth_token {
-            debug!("Found STORED_AUTH_TOKEN in cache");
+            debug!("Found STORED_AUTH_TOKEN in memory");
             // Check token expiery
             if let Ok(token_age) = auth_token.created.elapsed() {
                 if token_age < TOKEN_EXPIERY_DURATION {
                     if auth_token.value == received_token_value {
                         // update token expiery in memory with current time
-                        let _ = save_auth_token(auth_token.value.clone());
-                        debug!("received token matches STORED_AUTH_TOKEN");
+                        *maybe_auth_token = Some(AuthToken{
+                            value: auth_token.value.clone(),
+                            created: SystemTime::now()
+                        });
+                        // let _ = save_auth_token(auth_token.value.clone());
+                        debug!("OK - token matches STORED_AUTH_TOKEN");
                         return true;
+                    } else {
+                        debug!("FAIL - token does not match STORED_AUTH_TOKEN");
                     }
                 } else {
                     debug!("STORED_AUTH_TOKEN in cache expired");

@@ -50,6 +50,24 @@ fn check_signature_matches_client() {
 }
 
 #[test]
+fn check_signature_round_trip() {
+    // env_logger::init();
+    let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
+    let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
+
+    let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
+
+    let payload = "Some auth token";
+
+    let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
+
+    assert!(admin_keypair
+        .public
+        .verify(&serde_json::to_vec(&payload).unwrap(), &signature)
+        .is_ok());
+}
+
+#[test]
 fn extract_signature_from_headers() {
     let expected_signature: Option<Signature> = parse_signature("Right_signature");
     let mut headers = HeaderMap::new();
@@ -95,29 +113,28 @@ fn extract_token_from_query() {
 
 #[test]
 fn verify_signature_of_token() {
-    env_logger::init();
-
     let path = env::var("CARGO_MANIFEST_DIR").unwrap();
     let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
     env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
     let auth_token_value = "Some auth token";
     let public_key = read_hp_pubkey().unwrap();
-    debug!("Using pub key: {:?}", public_key);
-    let signature = parse_signature("kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg").unwrap();
+
+    let signature = parse_signature(
+        "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg",
+    )
+    .unwrap();
 
     assert!(verify_signature(&auth_token_value, signature, public_key));
 }
 
 #[test]
 fn verify_request_smoke() {
-    env_logger::init();
-
     let path = env::var("CARGO_MANIFEST_DIR").unwrap();
     let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
     env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
-    // Create Hyper request with headers
+    // Create Hyper request with new token
     let request = Request::builder()
         .method("GET")
         .uri("https://localhost/")
@@ -130,39 +147,112 @@ fn verify_request_smoke() {
 
     let response_code = create_response(&parts.headers).status();
 
-    assert_eq!(response_code, StatusCode::OK)
+    assert_eq!(response_code, StatusCode::OK);
+
+    // Create Hyper request with token only - should be in memory
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Some auth token")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::OK);
+
+    // Create Hyper request with token in a query
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("x-original-uri", "/path/to/api/?x-hpos-auth-token=Some%20auth%20token")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::OK);
+
+    // Create Hyper request with new token - should update to new token
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Some new auth token")
+        .header("x-hpos-admin-signature", "gU3I+PdYADeKFL5mooMMAeDiHfccWwQFVaWJUmZQSv+Ka++DxYSlzyYTay6dKF60D2n/mkA+3595FjEU5xZ+Cw")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::OK);
+
+    // Create Hyper request with new token - should be updated in memory
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Some new auth token")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::OK);
+
+    // Create Hyper request with incorrect token
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Some auth token")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::UNAUTHORIZED);
 }
 
-// #[test]
-// fn verify_request_fail() {
-//     let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
-//     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
+#[test]
+fn reject_request_smoke() {
+    let path = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
+    env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
-//     let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
+    // Create Hyper request with both headers
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Wrong token")
+        .header("x-hpos-admin-signature", "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg")
+        .body(())
+        .unwrap();
 
-//     // Now lets sign some payload
-//     let payload = Payload {
-//         method: "get".to_string(),
-//         request: "/api/v1/status".to_string(),
-//         body: "".to_string(),
-//     };
+    let (parts, _) = request.into_parts();
 
-//     let wrong_payload = Payload {
-//         method: "put".to_string(),
-//         request: "/api/v1/config".to_string(),
-//         body: "".to_string(),
-//     };
+    let response_code = create_response(&parts.headers).status();
 
-//     let wrong_signature = admin_keypair.sign(&serde_json::to_vec(&wrong_payload).unwrap());
-//     let mut signature_base64 = String::new();
-//     base64::encode_config_buf(
-//         wrong_signature.to_bytes().as_ref(),
-//         base64::STANDARD_NO_PAD,
-//         &mut signature_base64,
-//     );
+    assert_eq!(response_code, StatusCode::UNAUTHORIZED);
 
-//     assert_eq!(
-//         verify_request(payload, wrong_signature, admin_keypair.public).unwrap(),
-//         false
-//     )
-// }
+    // Create Hyper request with no tokens
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("x-original-uri", "/path/to/api/")
+        .body(())
+        .unwrap();
+
+    let (parts, _) = request.into_parts();
+
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::UNAUTHORIZED);
+}

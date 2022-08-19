@@ -25,7 +25,8 @@ fn verify_hp_admin_match() {
 }
 
 #[test]
-fn verify_signature_match_client() {
+fn check_signature_matches_client() {
+    // Signature created by client side
     let expected_signature: &str =
         "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg";
 
@@ -69,9 +70,7 @@ fn extract_token_from_headers() {
     headers.insert("x-hpos-auth-token", "Right_token".parse().unwrap());
     headers.insert(
         "x-original-uri",
-        "/foo?x-hpos-auth-token=Wrong_token"
-            .parse()
-            .unwrap(),
+        "/foo?x-hpos-auth-token=Wrong_token".parse().unwrap(),
     );
 
     match token_from_headers_or_query(&headers) {
@@ -85,9 +84,7 @@ fn extract_token_from_query() {
     let mut headers = HeaderMap::new();
     headers.insert(
         "x-original-uri",
-        "/foo?x-hpos-auth-token=Right_token"
-            .parse()
-            .unwrap(),
+        "/foo?x-hpos-auth-token=Right_token".parse().unwrap(),
     );
 
     match token_from_headers_or_query(&headers) {
@@ -96,43 +93,45 @@ fn extract_token_from_query() {
     }
 }
 
-// #[test]
-// fn verify_request_smoke() {
-//     let path = env::var("CARGO_MANIFEST_DIR").unwrap();
-//     let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
-//     env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
-//     let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
-//     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
+#[test]
+fn verify_signature_of_token() {
+    env_logger::init();
 
-//     let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
+    let path = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
+    env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
-//     // Now lets sign some payload
-//     let payload = Payload {
-//         method: "get".to_string(),
-//         request: "/api/v1/config".to_string(),
-//         body: "".to_string(),
-//     };
+    let auth_token_value = "Some auth token";
+    let public_key = read_hp_pubkey().unwrap();
+    debug!("Using pub key: {:?}", public_key);
+    let signature = parse_signature("kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg").unwrap();
 
-//     let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
-//     let mut signature_base64 = String::new();
-//     base64::encode_config_buf(
-//         signature.to_bytes().as_ref(),
-//         base64::STANDARD_NO_PAD,
-//         &mut signature_base64,
-//     );
+    assert!(verify_signature(&auth_token_value, signature, public_key));
+}
 
-//     let mut headers = HeaderMap::new();
-//     headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
+#[test]
+fn verify_request_smoke() {
+    env_logger::init();
 
-//     let signature = signature_from_headers(headers).unwrap();
+    let path = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
+    env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
-//     assert_eq!(
-//         verify_request(payload, signature, read_hp_pubkey().unwrap()).unwrap(),
-//         true
-//     )
-// }
+    // Create Hyper request with headers
+    let request = Request::builder()
+        .method("GET")
+        .uri("https://localhost/")
+        .header("X-Hpos-Auth-Token", "Some auth token")
+        .header("x-hpos-admin-signature", "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg")
+        .body(())
+        .unwrap();
 
+    let (parts, _) = request.into_parts();
 
+    let response_code = create_response(&parts.headers).status();
+
+    assert_eq!(response_code, StatusCode::OK)
+}
 
 // #[test]
 // fn verify_request_fail() {

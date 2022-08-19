@@ -15,7 +15,7 @@ use hpos_config_core::config::Config;
 use lazy_static::lazy_static;
 use std::error::Error;
 use std::sync::Mutex;
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, SystemTime};
 use std::{env, fs};
 use url::form_urlencoded;
 
@@ -31,8 +31,7 @@ lazy_static! {
     static ref STORED_AUTH_TOKEN: Mutex<Option<AuthToken>> = Mutex::new(None);
 }
 
-const TOKEN_EXPIERY_DURATION: Duration = Duration::from_secs(60*60*24*30); // 30 days
-
+const TOKEN_EXPIERY_DURATION: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
 
 struct AuthToken {
     value: String,
@@ -40,31 +39,14 @@ struct AuthToken {
 }
 
 // Create response based on the request parameters
-fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
+fn process_request(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let (parts, body) = req.into_parts();
 
     match parts.uri.path() {
         "/auth/" => {
             let entire_body = body.concat2();
 
-            let res = entire_body.map(move |_| {
-                if let Some(auth_token_value) = token_from_headers_or_query(&parts.headers) {
-                    if let Some(signature) = signature_from_headers(&parts.headers) {
-                        if let Ok(public_key) = read_hp_pubkey() {
-                            if verify_signature(&auth_token_value, signature, public_key) {
-                                if let Ok(_) = save_auth_token(auth_token_value) {
-                                    debug!("Signature verified succesfully, saved new STORED_AUTH_TOKEN");
-                                    return respond_success(true);
-                                }
-                            }
-                        }
-                    } else {
-                        return respond_success(verify_token(&auth_token_value))
-                    }
-                }
-
-                respond_success(false)
-            });
+            let res = entire_body.map(move |_| create_response(&parts.headers));
 
             Either::A(res)
         }
@@ -73,6 +55,25 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
             Either::B(res)
         }
     }
+}
+
+fn create_response(headers: &HeaderMap<HeaderValue>) -> Response<Body> {
+    if let Some(auth_token_value) = token_from_headers_or_query(&headers) {
+        if let Some(signature) = signature_from_headers(&headers) {
+            if let Ok(public_key) = read_hp_pubkey() {
+                if verify_signature(&auth_token_value, signature, public_key) {
+                    if let Ok(_) = save_auth_token(auth_token_value) {
+                        debug!("Signature verified succesfully, saved new STORED_AUTH_TOKEN");
+                        return respond_success(true);
+                    }
+                }
+            }
+        } else {
+            return respond_success(verify_token(&auth_token_value));
+        }
+    }
+
+    respond_success(false)
 }
 
 fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
@@ -147,7 +148,7 @@ fn verify_signature(token: &str, signature: Signature, public_key: PublicKey) ->
 
     if public_key.verify(token.as_bytes(), &signature).is_ok() {
         debug!("Signature verification passed");
-        return true
+        return true;
     }
 
     debug!("Signature verification failed");
@@ -210,7 +211,7 @@ fn verify_token(received_token_value: &str) -> bool {
                 if token_age < TOKEN_EXPIERY_DURATION {
                     if auth_token.value == received_token_value {
                         // update token expiery in memory with current time
-                        let _= save_auth_token(auth_token.value.clone());
+                        let _ = save_auth_token(auth_token.value.clone());
                         debug!("received token matches STORED_AUTH_TOKEN");
                         return true;
                     }
@@ -224,7 +225,7 @@ fn verify_token(received_token_value: &str) -> bool {
 }
 
 fn save_auth_token(value: String) -> Result<(), Box<dyn Error>> {
-    *STORED_AUTH_TOKEN.lock()? = Some(AuthToken{
+    *STORED_AUTH_TOKEN.lock()? = Some(AuthToken {
         value: value,
         created: SystemTime::now(),
     });
@@ -238,7 +239,7 @@ fn main() {
     let listen_address = ([127, 0, 0, 1], 2884).into();
 
     // Create a `Service` from servicing function
-    let new_svc = || service::service_fn(create_response);
+    let new_svc = || service::service_fn(process_request);
 
     let server = Server::bind(&listen_address).serve(new_svc).map_err(|e| {
         error!("server error: {}", e);

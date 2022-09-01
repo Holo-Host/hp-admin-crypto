@@ -5,18 +5,19 @@ use futures::{
     Future, Stream,
 };
 use hyper::header::{HeaderMap, HeaderName, HeaderValue};
-use hyper::{service, Body, Request, Response, Server, StatusCode};
+use hyper::{service, Body, Request, Response, Server, StatusCode, Uri};
 
-use ed25519_dalek::ed25519::signature::Signature;
+use ed25519_dalek::ed25519::Signature;
 use ed25519_dalek::PublicKey;
 use ed25519_dalek::Verifier;
 use hpos_config_core::config::Config;
 
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::sync::Mutex;
+use std::time::{Duration, SystemTime};
 use std::{env, fs};
+use url::form_urlencoded;
 
 use log::{debug, error, info};
 
@@ -24,105 +25,28 @@ lazy_static! {
     static ref X_HPOS_ADMIN_SIGNATURE: HeaderName =
         HeaderName::from_lowercase(b"x-hpos-admin-signature").unwrap();
     static ref X_ORIGINAL_URI: HeaderName = HeaderName::from_lowercase(b"x-original-uri").unwrap();
-    static ref X_ORIGINAL_METHOD: HeaderName =
-        HeaderName::from_lowercase(b"x-original-method").unwrap();
-    static ref HP_PUBLIC_KEY: Mutex<Option<PublicKey>> = Mutex::new(None);
+    static ref X_HPOS_AUTH_TOKEN: HeaderName =
+        HeaderName::from_lowercase(b"x-hpos-auth-token").unwrap();
+    static ref X_ORIGINAL_BODY: HeaderName = HeaderName::from_lowercase(b"x-body-hash").unwrap();
+    static ref STORED_AUTH_TOKEN: Mutex<Option<AuthToken>> = Mutex::new(None);
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Payload {
-    method: String,
-    request: String,
-    body: String,
+const TOKEN_EXPIERY_DURATION: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
+
+struct AuthToken {
+    value: String,
+    created: SystemTime,
 }
 
 // Create response based on the request parameters
-fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
+fn process_request(req: Request<Body>) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let (parts, body) = req.into_parts();
 
     match parts.uri.path() {
         "/auth/" => {
             let entire_body = body.concat2();
-            let res = entire_body.map(|body| {
-                // Extract X-Original-URI header value, 401 when problems occur
-                let req_uri_str = match parts.headers.get(&*X_ORIGINAL_URI) {
-                    Some(s) => s.to_str(),
-                    None => {
-                        debug!("Received request with no \"X-Original-URI\" header.");
-                        return respond_success(false);
-                    }
-                };
 
-                let req_uri_string = match req_uri_str {
-                    Ok(s) => s.to_string(),
-                    _ => {
-                        debug!("Could not parse \"X-Original-URI\" header value.");
-                        return respond_success(false);
-                    }
-                };
-
-                debug!(
-                    "Processing signature verification request for URI {}",
-                    req_uri_string
-                );
-
-                let body = match String::from_utf8(body.to_vec()) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        debug!("Error parsing request body: {}", e);
-                        return respond_success(false);
-                    }
-                };
-
-                let req_method_str = match parts.headers.get(&*X_ORIGINAL_METHOD) {
-                    Some(s) => s.to_str(),
-                    None => {
-                        debug!("Received request with no \"X-Original-METHOD\" header.");
-                        return respond_success(false);
-                    }
-                };
-
-                let req_method_string = match req_method_str {
-                    Ok(s) => s.to_string().to_ascii_lowercase(),
-                    _ => {
-                        debug!("Could not parse \"X-Original-URI\" header value.");
-                        return respond_success(false);
-                    }
-                };
-
-                debug!(
-                    "Processing signature verification request for METHOD {}",
-                    req_method_string
-                );
-
-                debug!("parts: {:?}", parts);
-
-                debug!("parts.method.to_string(): {:?}", parts.method.to_string());
-
-                let payload = Payload {
-                    method: req_method_string,
-                    request: req_uri_string,
-                    body: body,
-                };
-                debug!("Payload: {:?}", payload);
-                let public_key = match read_hp_pubkey() {
-                    Ok(pk) => pk,
-                    Err(e) => {
-                        debug!("{}", e);
-                        return respond_success(false);
-                    }
-                };
-
-                let is_verified = match verify_request(payload, parts.headers, public_key) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        debug!("Error while verifying signature: {}", e);
-                        return respond_success(false);
-                    }
-                };
-
-                respond_success(is_verified)
-            });
+            let res = entire_body.map(move |_| create_response(&parts.headers));
 
             Either::A(res)
         }
@@ -133,29 +57,105 @@ fn create_response(req: Request<Body>) -> impl Future<Item = Response<Body>, Err
     }
 }
 
-fn verify_request(
-    payload: Payload,
-    headers: HeaderMap<HeaderValue>,
-    public_key: PublicKey,
-) -> Result<bool, Box<dyn Error>> {
-    let payload_vec = serde_json::to_vec(&payload)?;
+fn create_response(headers: &HeaderMap<HeaderValue>) -> Response<Body> {
+    if let Some(auth_token_value) = token_from_headers_or_query(&headers) {
+        if let Some(signature) = signature_from_headers(&headers) {
+            if let Ok(public_key) = read_hp_pubkey() {
+                if verify_signature(&auth_token_value, signature, public_key) {
+                    if let Ok(_) = save_auth_token(auth_token_value) {
+                        info!("Saved new STORED_AUTH_TOKEN");
+                        return respond_success(true);
+                    }
+                }
+            }
+        } else {
+            return respond_success(verify_token(&auth_token_value));
+        }
+    }
 
-    debug!("Using pub key: {:?}", public_key);
+    respond_success(false)
+}
 
-    if let Some(signature_base64) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
-        if let Ok(signature_vec) = base64::decode_config(&signature_base64, base64::STANDARD_NO_PAD)
-        {
-            if let Ok(signature_bytes) = Signature::from_bytes(&signature_vec) {
-                if public_key.verify(&payload_vec, &signature_bytes).is_ok() {
-                    debug!("Signature verified successfully");
-                    return Ok(true);
+fn uri_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Uri> {
+    if let Some(result) = headers.get(&*X_ORIGINAL_URI) {
+        if let Ok(uri_str) = result.to_str() {
+            let uri = Uri::builder()
+                .scheme("https")
+                .authority("abba.pl")
+                .path_and_query(uri_str)
+                .build()
+                .unwrap();
+
+            return Some(uri);
+        }
+    }
+
+    return None;
+}
+
+fn token_from_headers_or_query(headers: &HeaderMap<HeaderValue>) -> Option<String> {
+    if let Some(value) = headers.get(&*X_HPOS_AUTH_TOKEN) {
+        if let Ok(value_str) = value.to_str() {
+            debug!("Received token in headers");
+            return Some(value_str.to_owned());
+        }
+    }
+
+    if let Some(uri) = uri_from_headers(&headers) {
+        if let Some(query_str) = uri.query() {
+            let args = form_urlencoded::parse(query_str.as_bytes()).into_owned();
+
+            for arg in args {
+                let (key, value) = arg;
+                if key.to_ascii_lowercase() == "x-hpos-auth-token".to_string() {
+                    debug!("Received token in query string");
+                    return Some(value);
                 }
             }
         }
     }
 
-    debug!("Signature verified unsuccessfully");
-    return Ok(false);
+    error!("Received request with no auth token in headers nor query string");
+    None
+}
+
+fn signature_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<Signature> {
+    if let Some(value) = headers.get(&*X_HPOS_ADMIN_SIGNATURE) {
+        if let Ok(signature_base64) = value.to_str() {
+            info!("Received token signing signature in headers");
+            return parse_signature(signature_base64);
+        }
+    }
+
+    None
+}
+
+fn parse_signature(signature_base64: &str) -> Option<Signature> {
+    if let Ok(signature_vec) = base64::decode_config(signature_base64, base64::STANDARD_NO_PAD) {
+        if let Ok(signature) = Signature::from_bytes(&signature_vec) {
+            return Some(signature);
+        }
+    };
+
+    debug!("Signature is not parsable");
+    None
+}
+
+fn verify_signature(token: &str, signature: Signature, public_key: PublicKey) -> bool {
+    debug!(
+        "Processing signature verification request for Auth Token: {}",
+        token
+    );
+
+    if let Ok(token_vec) = serde_json::to_vec(&token) {
+        if public_key.verify(&token_vec, &signature).is_ok() {
+            debug!("Signature verification passed");
+            return true;
+        }
+    }
+
+    debug!("Signature verification failed");
+    false
 }
 
 fn respond_success(is_verified: bool) -> hyper::Response<Body> {
@@ -173,13 +173,7 @@ fn respond_success(is_verified: bool) -> hyper::Response<Body> {
 }
 
 fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
-    // Read cached value from HP_PUBLIC_KEY
-    if let Some(pub_key) = *HP_PUBLIC_KEY.lock()? {
-        debug!("Returning HP_PUBLIC_KEY from cache");
-        return Ok(pub_key);
-    }
-
-    info!("Reading HP Admin Public Key from file.");
+    debug!("Reading HP Admin Public Key from file.");
 
     let hpos_config_path = match env::var("HPOS_CONFIG_PATH") {
         Ok(s) => s,
@@ -207,11 +201,44 @@ fn read_hp_pubkey() -> Result<PublicKey, Box<dyn Error>> {
         }
     };
 
-    // Update cached value in HP_PUBLIC_KEY
-    let pub_key = hpos_config.admin_public_key();
-    *HP_PUBLIC_KEY.lock()? = Some(pub_key);
+    Ok(hpos_config.admin_public_key())
+}
 
-    Ok(pub_key)
+fn verify_token(received_token_value: &str) -> bool {
+    // Read cached value from STORED_AUTH_TOKEN
+    if let Ok(mut maybe_auth_token) = STORED_AUTH_TOKEN.lock() {
+        if let Some(auth_token) = &*maybe_auth_token {
+            debug!("Found STORED_AUTH_TOKEN in memory");
+            // Check token expiery
+            if let Ok(token_age) = auth_token.created.elapsed() {
+                if token_age < TOKEN_EXPIERY_DURATION {
+                    if auth_token.value == received_token_value {
+                        // update token expiery in memory with current time
+                        *maybe_auth_token = Some(AuthToken{
+                            value: auth_token.value.clone(),
+                            created: SystemTime::now()
+                        });
+                        // let _ = save_auth_token(auth_token.value.clone());
+                        debug!("OK - token matches STORED_AUTH_TOKEN");
+                        return true;
+                    } else {
+                        debug!("FAIL - token does not match STORED_AUTH_TOKEN");
+                    }
+                } else {
+                    debug!("STORED_AUTH_TOKEN in cache expired");
+                }
+            }
+        }
+    }
+    false
+}
+
+fn save_auth_token(value: String) -> Result<(), Box<dyn Error>> {
+    *STORED_AUTH_TOKEN.lock()? = Some(AuthToken {
+        value: value,
+        created: SystemTime::now(),
+    });
+    Ok(())
 }
 
 fn main() {
@@ -221,7 +248,7 @@ fn main() {
     let listen_address = ([127, 0, 0, 1], 2884).into();
 
     // Create a `Service` from servicing function
-    let new_svc = || service::service_fn(create_response);
+    let new_svc = || service::service_fn(process_request);
 
     let server = Server::bind(&listen_address).serve(new_svc).map_err(|e| {
         error!("server error: {}", e);
@@ -234,121 +261,4 @@ fn main() {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use base36;
-    use ed25519_dalek::Keypair;
-    use ed25519_dalek::Signer;
-    use hpos_config_core::config::admin_keypair_from;
-
-    const HC_PUBLIC_KEY: &str = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";
-    const EMAIL: &str = "pj@abba.pl";
-    const PASSWORD: &str = "abbaabba";
-
-    #[test]
-    fn verify_hp_admin_match() {
-        let expected_hp_admin_pubkey: &str = "FBtaf29RmsFketdMt8LoI2RCwhDKj6PSAOQhe3A/3Bw";
-
-        let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
-        let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-
-        let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
-
-        let hp_admin_pubkey = base64::encode_config(
-            &admin_keypair.public.to_bytes()[..],
-            base64::STANDARD_NO_PAD,
-        );
-
-        assert_eq!(hp_admin_pubkey, expected_hp_admin_pubkey);
-    }
-
-    #[test]
-    fn verify_signature_match_client() {
-        let expected_signature: &str =
-            "izQfuNi+RYNhuEN8qHCQUUOkT45V8I97uwmTGlLAuECROH8Lh0daCGdo4Nneg+BvUzmBgHHfF73HCTOPGXl7Dw";
-
-        let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
-        let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-
-        let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
-
-        // Now lets sign some payload
-        let payload = Payload {
-            method: "get".to_string(),
-            request: "/api/v1/config".to_string(),
-            body: "".to_string(),
-        };
-
-        let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
-        let mut signature_base64 = String::new();
-        base64::encode_config_buf(
-            signature.to_bytes().as_ref(),
-            base64::STANDARD_NO_PAD,
-            &mut signature_base64,
-        );
-
-        assert_eq!(signature_base64, expected_signature);
-    }
-
-    /*#[test]
-    fn verify_request_smoke() {
-        let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
-        let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-
-        let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
-
-        // Now lets sign some payload
-        let payload = Payload {
-            method: "get".to_string(),
-            request: "/api/v1/config".to_string(),
-            body: "".to_string(),
-        };
-
-        let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
-        let mut signature_base64 = String::new();
-        base64::encode_config_buf(
-            signature.to_bytes().as_ref(),
-            base64::STANDARD_NO_PAD,
-            &mut signature_base64,
-        );
-
-        let mut headers = HeaderMap::new();
-        headers.insert("x-hpos-admin-signature", signature_base64.parse().unwrap());
-
-        assert_eq!(
-            verify_request(payload, headers, read_hp_pubkey().unwrap()).unwrap(),
-            true
-        )
-    }*/
-
-    #[test]
-    fn verify_request_fail() {
-        let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
-        let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
-
-        let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
-
-        // Now lets sign some payload
-        let payload = Payload {
-            method: "get".to_string(),
-            request: "/api/v1/config".to_string(),
-            body: "".to_string(),
-        };
-
-        let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
-        let mut signature_base64 = String::new();
-        base64::encode_config_buf(
-            signature.to_bytes().as_ref(),
-            base64::STANDARD_NO_PAD,
-            &mut signature_base64,
-        );
-
-        let mut headers = HeaderMap::new();
-        headers.insert("x-hpos-admin-signature", "Wrong signature".parse().unwrap());
-
-        assert_eq!(
-            verify_request(payload, headers, admin_keypair.public).unwrap(),
-            false
-        )
-    }
-}
+mod tests;

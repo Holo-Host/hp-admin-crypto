@@ -6,10 +6,6 @@ const PASSWORD = "abbaabba";
 
 let kp = new HpAdminKeypair(HC_PUBLIC_KEY, EMAIL, PASSWORD);
 
-const payload = {
-    method: "get",
-    request: "/api/v1/config",
-    body: ""
-}
+const payload = "Some auth token"
 
 console.log(kp.sign(payload));

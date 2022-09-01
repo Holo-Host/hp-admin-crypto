@@ -4,18 +4,10 @@ use crate::util::*;
 use ed25519_dalek::Signer;
 use ed25519_dalek::{Keypair, PublicKey};
 use hpos_config_core::admin_keypair_from;
-use serde::*;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct HpAdminKeypair(Keypair);
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Payload {
-    method: String,
-    request: String,
-    body: String,
-}
 
 #[wasm_bindgen]
 impl HpAdminKeypair {
@@ -33,20 +25,10 @@ impl HpAdminKeypair {
         Ok(Self(keypair))
     }
 
-    /// @description Sign payload and return base64 encoded signature.
-    /// Requires properly formatted payload:
-    /// const payload = {
-    ///     method: String,
-    ///     request: String,
-    ///     body: String
-    /// }
+    /// @description Sign string and return base64 encoded signature.
     /// @example
     /// myKeys = new HpAdminKeypair( hc_public_key_string, email, password );
-    /// const payload = {
-    ///     method: "get",
-    ///     request: "/someuri",
-    ///     body: ""
-    /// }
+    /// const payload = "Some auth token";
     /// myKeys.sign( payload );
     #[wasm_bindgen]
     pub fn sign(&self, payload: &JsValue) -> Fallible<String> {
@@ -70,8 +52,8 @@ fn new_inner(hc_public_key_string: String, email: String, password: String) -> F
 }
 
 fn parse_payload(payload: &JsValue) -> Fallible<Vec<u8>> {
-    let payload_struct: Payload = payload.into_serde().map_err(into_js_error)?;
-    Ok(serde_json::to_vec(&payload_struct).map_err(into_js_error)?)
+    let payload_string: String = payload.into_serde().map_err(into_js_error)?;
+    Ok(serde_json::to_vec(&payload_string).map_err(into_js_error)?)
 }
 
 #[cfg(test)]
@@ -124,15 +106,11 @@ mod tests {
     #[wasm_bindgen_test]
     fn create_correct_signature() {
         let expected_signature =
-            "izQfuNi+RYNhuEN8qHCQUUOkT45V8I97uwmTGlLAuECROH8Lh0daCGdo4Nneg+BvUzmBgHHfF73HCTOPGXl7Dw";
+            "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg";
 
-        let payload = Payload {
-            method: "get".to_string(),
-            request: "/api/v1/config".to_string(),
-            body: "".to_string(),
-        };
+        let payload = "Some auth token";
 
-        let payload_js = JsValue::from_serde(&payload).unwrap();
+        let payload_js = JsValue::from_str(&payload);
         let my_keypair = HpAdminKeypair::new(
             HC_PUBLIC_KEY.to_string(),
             EMAIL.to_string(),

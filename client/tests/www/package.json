@@ -9,12 +9,12 @@
   },
   "author": "PJ Klimek <pj@imagine-nyc.com>",
   "dependencies": {
-    "@holo-host/hp-admin-keypair": "^0.2.3"
+    "@holo-host/hp-admin-keypair": "file:../../pkg"
   },
   "devDependencies": {
+    "copy-webpack-plugin": "^5.0.0",
     "webpack": "^4.29.3",
     "webpack-cli": "^3.1.0",
-    "webpack-dev-server": "^3.1.5",
-    "copy-webpack-plugin": "^5.0.0"
+    "webpack-dev-server": "^3.1.5"
   }
 }

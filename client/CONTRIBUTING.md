@@ -30,7 +30,7 @@ You can interact with package via browser's console by going to `/tests/www` and
 npm install
 npm run start
 ```
-This will spin up a webpack hot reload server.
+This will spin up a webpack hot reload server. Heads up, `index.js` is using local version of `@holo-host/hp-admin-keypair` from /pkg/ folder. Make sure to create it by running build script first.
 
 ## Generate docs
 Publish docs only on `gh-pages` branch with:

@@ -1,11 +1,12 @@
 {
   "v2": {
-    "encrypted_key": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADKZmCXinJ59rt+scbD89QWVlfbmEa7BTVPDpFI6iGg/f5EkOQzgAK+uhLjoobpqta2c5TBrJ25ltkMkE2J9zVW",
+    "device_bundle": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADKZmCXinJ59rt+scbD89QWVlfbmEa7BTVPDpFI6iGg/f5EkOQzgAK+uhLjoobpqta2c5TBrJ25ltkMkE2J9zVW",
+    "derivation_path": "0",
     "registration_code": "7-determine-flatfoot",
     "settings": {
       "admin": {
-        "email": "joel+hc2@holo.host",
-        "public_key": "6F13qCqPLfsv4+J4zCRr6x2gGb34YHCyb4q8FXOuaZs"
+        "email": "pj@abba.pl",
+        "public_key": "FBtaf29RmsFketdMt8LoI2RCwhDKj6PSAOQhe3A/3Bw"
       }
     }
   }

@@ -31,7 +31,7 @@ lazy_static! {
     static ref STORED_AUTH_TOKEN: Mutex<Option<AuthToken>> = Mutex::new(None);
 }
 
-const TOKEN_EXPIERY_DURATION: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
+const TOKEN_EXPIERY_DURATION: Duration = Duration::from_secs(60 * 10); // 10 min
 
 struct AuthToken {
     value: String,

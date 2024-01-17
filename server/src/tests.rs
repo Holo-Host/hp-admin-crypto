@@ -3,13 +3,23 @@ use base36;
 use ed25519_dalek::{Keypair, Signer};
 use hpos_config_core::config::admin_keypair_from;
 
-const HC_PUBLIC_KEY: &str = "5m5srup6m3b2iilrsqmxu6ydp8p8cr0rdbh4wamupk3s4sxqr5";
-const EMAIL: &str = "pj@abba.pl";
-const PASSWORD: &str = "abbaabba";
+// const HC_PUBLIC_KEY: &str = "5crbpvtvmb926sz624h38azxzj2fkly3lykt4efq3wgslesooh";
+// const EMAIL: &str = "alastair.ong@holo.host";
+// const PASSWORD: &str = "12345678";
+// const AUTH_TOKEN: &str = "acE_JSIVdpDFkII173gw7gHNrsNIjJQ3zOIWi-XB18V4m9yRKNNrqb8pfGzzoVq6MWU8l9M0GEedlGeK3YdfwarBBs-Gjtg65WlvSKsUwVi27EJztSCxnB1ZPUUR4Kz3XNnTTM0bekw0SlMMBA6ASisR0Tjej4kVtjS1z4x5vCk";
+// const SIGNATURE: &str = "p5Lhlu+Ue8ACDi1s6BuBbmOCxA6Y6MAwSJgSXGJD4/8Y7r5+LuCWBRAcDpRupOBTvVuL84b+oq7lnBl5JuXtBQ";
+// const HP_ADMIN_PUBKEY: &str = "Zpw/niqmzXuPcYRpOU+BgO7u2/jZR0dnUHD1XSeBxKA";
+
+const HC_PUBLIC_KEY: &str = "13lthbbhje56kimmeadqzhqw2ok47ddd7gdw5g24fnu8n4qx63";
+const EMAIL: &str = "Bartgrande@ziggo.nl";
+const PASSWORD: &str = "BartGroot";
+const AUTH_TOKEN: &str = "eH_DKOnv96FJlYTvsOiPKKSksHWbA7inbh0OebnLoRFKzQn4x0K9P9QMGfW7hhUcW3jAo1wTPh5hCQ9OSSQBFVwVWeBjeE5L2kgY1Xb1FZxfuI1yqC5Krmp-Ab3HEEiygWQbp4QrujflV3MmTazp94RNgc_FJkDwokWaQ0IP2CU";
+const SIGNATURE: &str = "XtYletKLUs0nyWT51AL32LhElJBKZ65QYCDvM9jU11mHdUgqa27kNox6HamMKtj3a6NJUjPJmLSTfJjMQeUSAA";
+const HP_ADMIN_PUBKEY: &str = "Q+mHyDrZO/I7MBRNexRVFp2Bm1ASPcJA8MgBB645VnU";
 
 #[test]
 fn verify_hp_admin_match() {
-    let expected_hp_admin_pubkey: &str = "FBtaf29RmsFketdMt8LoI2RCwhDKj6PSAOQhe3A/3Bw";
+    let expected_hp_admin_pubkey: &str = HP_ADMIN_PUBKEY;
 
     let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
@@ -27,8 +37,7 @@ fn verify_hp_admin_match() {
 #[test]
 fn check_signature_matches_client() {
     // Signature created by client side
-    let expected_signature: &str =
-        "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg";
+    let expected_signature: &str = SIGNATURE;
 
     let hc_public_key_bytes = base36::decode(HC_PUBLIC_KEY).unwrap();
     let hc_public_key = PublicKey::from_bytes(&hc_public_key_bytes).unwrap();
@@ -36,7 +45,7 @@ fn check_signature_matches_client() {
     let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
 
     // Now lets sign a token
-    let payload = "Some auth token";
+    let payload = AUTH_TOKEN;
 
     let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
     let mut signature_base64 = String::new();
@@ -57,7 +66,7 @@ fn check_signature_round_trip() {
 
     let admin_keypair: Keypair = admin_keypair_from(hc_public_key, EMAIL, PASSWORD).unwrap();
 
-    let payload = "Some auth token";
+    let payload = AUTH_TOKEN;
 
     let signature = admin_keypair.sign(&serde_json::to_vec(&payload).unwrap());
 
@@ -117,7 +126,7 @@ fn verify_signature_of_token() {
     let hpos_config_path = format!("{}/resources/test/hpos-config-v2.json", path);
     env::set_var("HPOS_CONFIG_PATH", &hpos_config_path);
 
-    let auth_token_value = "Some auth token";
+    let auth_token_value = AUTH_TOKEN;
     let public_key = read_hp_pubkey().unwrap();
 
     let signature = parse_signature(
@@ -152,7 +161,7 @@ fn verify_request_smoke() {
     let request = Request::builder()
         .method("GET")
         .uri("https://localhost/")
-        .header("X-Hpos-Auth-Token", "Some auth token")
+        .header("X-Hpos-Auth-Token", AUTH_TOKEN)
         .header("x-hpos-admin-signature", "kRBI5Yon9Sxcvt8TXJI3Hbb9bHUe9UcWUy64jTky34v2DEauF5UDFvmk7tGJm9RY5xLrRrobeSe1HimPbFRrBg")
         .body(())
         .unwrap();
@@ -224,7 +233,7 @@ fn verify_request_smoke() {
     let request = Request::builder()
         .method("GET")
         .uri("https://localhost/")
-        .header("X-Hpos-Auth-Token", "Some auth token")
+        .header("X-Hpos-Auth-Token", AUTH_TOKEN)
         .body(())
         .unwrap();
 
